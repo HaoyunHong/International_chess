@@ -14,37 +14,6 @@
    <string>ChessServer</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="QPushButton" name="giveUpButton">
-    <property name="geometry">
-     <rect>
-      <x>360</x>
-      <y>520</y>
-      <width>93</width>
-      <height>28</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>Calibri</family>
-      <pointsize>10</pointsize>
-      <weight>75</weight>
-      <bold>true</bold>
-     </font>
-    </property>
-    <property name="text">
-     <string>give up</string>
-    </property>
-   </widget>
-   <widget class="QLCDNumber" name="lcdNumber">
-    <property name="geometry">
-     <rect>
-      <x>40</x>
-      <y>540</y>
-      <width>91</width>
-      <height>51</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
@@ -58,25 +27,46 @@
      <string/>
     </property>
     <property name="pixmap">
-     <pixmap resource="../ChessClient/img.qrc">:/img/img/whiteKing.png</pixmap>
+     <pixmap resource="img.qrc">:/img/img/whiteKing.png</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
     </property>
    </widget>
-   <widget class="QLabel" name="yourTurnlabel">
+   <widget class="QPushButton" name="giveUpButton">
     <property name="geometry">
      <rect>
-      <x>40</x>
-      <y>490</y>
+      <x>360</x>
+      <y>520</y>
       <width>101</width>
-      <height>41</height>
+      <height>51</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>Calibri</family>
-      <pointsize>12</pointsize>
+      <pointsize>16</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
+    </property>
+    <property name="text">
+     <string>give up</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="yourTurnlabel">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>580</y>
+      <width>161</width>
+      <height>71</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Calibri</family>
+      <pointsize>20</pointsize>
       <weight>75</weight>
       <bold>true</bold>
      </font>
@@ -89,6 +79,16 @@
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
+    </property>
+   </widget>
+   <widget class="QLCDNumber" name="lcdNumber">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>520</y>
+      <width>91</width>
+      <height>51</height>
+     </rect>
     </property>
    </widget>
   </widget>
@@ -113,6 +113,8 @@
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources/>
+ <resources>
+  <include location="img.qrc"/>
+ </resources>
  <connections/>
 </ui>

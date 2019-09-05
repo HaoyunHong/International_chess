@@ -154,6 +154,7 @@ ChessClient::ChessClient(QWidget *parent) :
     hasDestination = false;
 
     step = 0;
+     ui->yourTurnlabel->setStyleSheet("color:white;background-color:red;");
     ui->yourTurnlabel->hide();
 }
 

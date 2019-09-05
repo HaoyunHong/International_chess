@@ -205,7 +205,8 @@ ChessServer::ChessServer(QWidget *parent) :
 
     step = 0;
 
-     ui->yourTurnlabel->hide();
+    ui->yourTurnlabel->setStyleSheet("color:white;background-color:red;");
+    //ui->yourTurnlabel->hide();
 }
 
 ChessServer::~ChessServer()
