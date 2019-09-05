@@ -18,7 +18,15 @@ ChessClient::ChessClient(QWidget *parent) :
     QMenu *menu = mBar->addMenu("Option");
     QAction *actClient = menu->addAction("Connect");
 
+    QMenu *menu2 = mBar->addMenu("Game");
+    QAction *actLoad = menu2->addAction("load game");
+    QAction *actSave = menu2->addAction("save game");
+
     port =6666;
+
+    isInitial = false;
+
+    menu2->setEnabled(false);
 
 
 
@@ -43,8 +51,27 @@ ChessClient::ChessClient(QWidget *parent) :
             connect(tcpClientSocket,&QTcpSocket::connected,
                     [=]()
             {
+                this->setWindowTitle("Client is connected to server");
                 qDebug()<<"客户端已连接";
                 menu->setEnabled(false);
+                menu2->setEnabled(true);
+
+                connect(tcpClientSocket,&QTcpSocket::readyRead,
+                        [=]()
+                {
+                    QString str = tcpClientSocket->readAll();
+                    qDebug()<<"tcpClientSocket->readAll(): "<<str;
+
+                    if(str=="0")
+                    {
+                        isInitial = true;
+                        initial();
+
+                        actLoad->setEnabled(false);
+                        update();
+                    }
+
+                });
 
             });
 
@@ -52,6 +79,7 @@ ChessClient::ChessClient(QWidget *parent) :
        connect(tcpClientSocket,&QTcpSocket::disconnected,
                [=]()
        {
+           this->setWindowTitle("Server canceled the connection");
            qDebug()<<"客户端已断开";
 
            if(nullptr == tcpClientSocket)
@@ -59,7 +87,6 @@ ChessClient::ChessClient(QWidget *parent) :
                return;
            }
            menu->setEnabled(true);
-           //tcpClientSocket->disconnectFromHost();
            tcpClientSocket->close();
            tcpClientSocket = nullptr;
 
@@ -69,6 +96,8 @@ ChessClient::ChessClient(QWidget *parent) :
 
     });
 
+
+
     QIcon mainIcon(":/img/img/blackQueen.png");
     this->setWindowIcon(mainIcon);
 
@@ -76,11 +105,12 @@ ChessClient::ChessClient(QWidget *parent) :
         {
             for(int j=0;j<8;j++)
             {
-                matrix[i][j]=false;
+                matrix[i][j]=0;
             }
         }
 
 
+        focus = QPoint(-1,-1);
 }
 
 ChessClient::~ChessClient()
@@ -140,5 +170,104 @@ void ChessClient::paintEvent(QPaintEvent *e)
         }
     }
 
+    QPixmap wPawn(":/img/img/whitePawn.png");
+    QPixmap bPawn(":/img/img/blackPawn.png");
+    QPixmap wRook(":/img/img/whiteRook.png");
+    QPixmap bRook(":/img/img/blackRook.png");
+    QPixmap wHorse(":/img/img/whiteHorse.png");
+    QPixmap bHorse(":/img/img/blackHorse.png");
+    QPixmap wBishop(":/img/img/whiteBishop.png");
+    QPixmap bBishop(":/img/img/blackBishop.png");
+    QPixmap wQueen(":/img/img/whiteQueen.png");
+    QPixmap bQueen(":/img/img/blackQueen.png");
+    QPixmap wKing(":/img/img/whiteKing.png");
+    QPixmap bKing(":/img/img/blackKing.png");
+
+    //棋盘中的方格的位子是要反一反的
+    if(isInitial)
+    {
+        //isInitial = false;
+        for(int i=0;i<8;i++)
+        {
+            for(int j=0;j<8;j++)
+            {
+                if(j==6)
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,wPawn);
+                }
+                if(j==1)
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,bPawn);
+                }
+                if(j==7 && (i==0||i==7))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,wRook);
+                }
+                if(j==0 && (i==0||i==7))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,bRook);
+                }
+                if(j==7 && (i==1||i==6))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,wHorse);
+                }
+                if(j==0 && (i==1||i==6))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,bHorse);
+                }
+                if(j==7 && (i==2||i==5))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,wBishop);
+                }
+                if(j==0 && (i==2||i==5))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,bBishop);
+                }
+                if(j==7 && (i==3))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,wQueen);
+                }
+                if(j==0 && (i==3))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,bQueen);
+                }
+                if(j==7 && (i==4))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,wKing);
+                }
+                if(j==0 && (i==4))
+                {
+                    p.drawPixmap(i*unit,j*unit,unit,unit,bKing);
+                }
+            }
+        }
+
+    }
+
     p.end();
+}
+
+void ChessClient::initial()
+{
+        for(int i=0;i<8;i++)
+        {
+            matrix[i][6]=1;
+            matrix[i][6]=-1;
+        }
+            matrix[0][7]=2;
+            matrix[7][7]=2;
+            matrix[0][0]=-2;
+            matrix[7][0]=-2;
+            matrix[1][7]=3;
+            matrix[6][7]=3;
+            matrix[1][0]=-3;
+            matrix[6][0]=-3;
+            matrix[2][7]=4;
+            matrix[5][7]=4;
+            matrix[2][0]=-4;
+            matrix[5][0]=-4;
+            matrix[3][7]=5;
+            matrix[3][0]=-5;
+            matrix[4][7]=6;
+            matrix[4][0]=-6;
 }

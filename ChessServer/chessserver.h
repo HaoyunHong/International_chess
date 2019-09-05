@@ -51,7 +51,20 @@ public:
 private:
     Ui::ChessServer *ui;
 
-    bool matrix[8][8];
+    int matrix[8][8];
+    /*
+     * 0: 无棋子
+     * +: white
+     * -: black
+     *
+     *
+     * +-1: pawn
+     * +-2: rook
+     * +-3: horse
+     * +-4: bishop
+     * +-5: queen
+     * +-6: king
+     */
 
     serverConnectDialog *sCDlg;
 
@@ -62,11 +75,39 @@ private:
     QString ip;
     quint16 port;
 
+    QPoint focus;
+    QVector<QPoint> focusPath;
+    QVector<QPoint> curClickPath;
+
+    bool isInitial;
+
+    void initial();
+
+    bool isSelected;
+
+    bool hasDestination;
+
+    QPoint curLeftClick;
+
+    QPixmap getPic(QPoint);
+
+//    bool pawnMoved[8];
+
+    void setMovePoints(QPoint);
+
+    int step;
+
+    QTimer timerSend;
+
+    QString op;
+
 
 
 
 protected:
     void paintEvent(QPaintEvent *e);
+    void mousePressEvent(QMouseEvent *e);
+    void mouseDoubleClickEvent(QMouseEvent *e);
 
 };
 

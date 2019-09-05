@@ -50,7 +50,7 @@ public:
 private:
     Ui::ChessClient *ui;
 
-    bool matrix[8][8];
+    int matrix[8][8];
 
     clientConnectDialog *cCDlg;
 
@@ -58,6 +58,13 @@ private:
 
     QString ip;
     quint16 port;
+
+    bool isInitial;
+
+    void initial();
+
+    QPoint focus;
+
 
 
 protected:
