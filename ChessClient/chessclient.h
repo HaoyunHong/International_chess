@@ -80,6 +80,21 @@ private:
     QPoint opposeOrigin;
     QPoint opposeTo;
 
+    QTimer timerCount;
+    int countTime;
+
+    //菜单栏
+    QMenuBar *mBar;
+    //添加菜单
+    QMenu *menu;
+    QAction *actClient;
+
+    QMenu *menu2;
+    QAction *actLoad;
+    QAction *actSave;
+
+    void playAgain();
+
 
 protected:
     void paintEvent(QPaintEvent *e);

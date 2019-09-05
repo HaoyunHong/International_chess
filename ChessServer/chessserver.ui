@@ -55,12 +55,15 @@
     </property>
    </widget>
    <widget class="QLabel" name="yourTurnlabel">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
     <property name="geometry">
      <rect>
-      <x>170</x>
+      <x>180</x>
       <y>580</y>
-      <width>161</width>
-      <height>71</height>
+      <width>141</width>
+      <height>51</height>
      </rect>
     </property>
     <property name="font">
@@ -89,6 +92,18 @@
       <width>91</width>
       <height>51</height>
      </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Sunken</enum>
+    </property>
+    <property name="midLineWidth">
+     <number>3</number>
+    </property>
+    <property name="digitCount">
+     <number>3</number>
     </property>
    </widget>
   </widget>

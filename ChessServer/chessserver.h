@@ -71,6 +71,17 @@ private:
     QTcpServer *tcpServerServer;
     QTcpSocket *tcpServerSocket;
 
+    //菜单栏
+    QMenuBar *mBar;
+
+    //添加菜单
+    QMenu *menu;
+    QAction *actServer;
+
+    QMenu *menu2;
+    QAction *actInitial;
+    QAction *actLoad;
+    QAction *actSave;
 
     QString ip;
     quint16 port;
@@ -83,8 +94,6 @@ private:
 
     bool isSelected;
 
-    bool hasDestination;
-
     QPoint curLeftClick;
 
     QPixmap getPic(QPoint);
@@ -95,6 +104,17 @@ private:
 
     QPoint opposeOrigin;
     QPoint opposeTo;
+
+    QTimer timerStart;
+    int startTime;
+
+    QTimer timerCount;
+    int countTime;
+
+    void choice();
+
+    void origin();
+    void playAgain();
 
 
 

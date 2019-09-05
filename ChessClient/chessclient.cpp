@@ -10,23 +10,32 @@ ChessClient::ChessClient(QWidget *parent) :
 
     this->setWindowTitle("Client");
 
+    ui->yourTurnlabel->setStyleSheet("color:black;background-color:red;");
+    ui->yourTurnlabel->hide();
+
     //菜单栏
-    QMenuBar *mBar = menuBar();
+    mBar = menuBar();
     setMenuBar(mBar);
 
     //添加菜单
-    QMenu *menu = mBar->addMenu("Option");
-    QAction *actClient = menu->addAction("Connect");
+    menu = mBar->addMenu("Option");
+    actClient = menu->addAction("Connect");
 
-    QMenu *menu2 = mBar->addMenu("Game");
-    QAction *actLoad = menu2->addAction("load game");
-    QAction *actSave = menu2->addAction("save game");
+    menu2 = mBar->addMenu("Game");
+    actLoad = menu2->addAction("load game");
+    actSave = menu2->addAction("save game");
 
     port = 6666;
 
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            matrix[i][j] = 0;
+        }
+    }
+
     menu2->setEnabled(false);
-
-
 
     connect(actClient, &QAction::triggered,
         [=]()
@@ -68,11 +77,29 @@ ChessClient::ChessClient(QWidget *parent) :
 
                         in>>nextBlockSize;
                         qDebug()<<"nextBlockSize: "<<nextBlockSize;
+                        if(nextBlockSize == 8888)
+                        {
+                            playAgain();
+                        }
+                        if(nextBlockSize == 6666)
+                        {
+                            int ret = QMessageBox::information(this, "Win", "[Opposite Time Out] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
+                            switch (ret)
+                            {
+                            case QMessageBox::Ok:
+                                this->setWindowTitle("Please wait for Server's reaction");
+                                break;
+                            default:
+                                break;
+                            }
+                            break;
+                        }
                         if(nextBlockSize == 4)
                         {
                             in>>oX;
                             qDebug()<<"Initial!";
                             initial();
+                            actLoad->setEnabled(false);
                             update();
                             break;
                         }
@@ -107,6 +134,7 @@ ChessClient::ChessClient(QWidget *parent) :
                             step++;
                             qDebug()<<"Before Client turn step = "<<step;
                             update();
+                            timerCount.start(1000);
                     }
 
                 });
@@ -120,13 +148,37 @@ ChessClient::ChessClient(QWidget *parent) :
             this->setWindowTitle("Server canceled the connection");
             qDebug() << "客户端已断开";
 
+
             if (nullptr == tcpClientSocket)
             {
                 return;
             }
             menu->setEnabled(true);
+            actLoad->setEnabled(true);
+            menu2->setEnabled(false);
             tcpClientSocket->close();
             tcpClientSocket = nullptr;
+            focus = QPoint(-1,-1);
+            curLeftClick = QPoint(-1,-1);
+            menu2->setEnabled(false);
+            isSelected = false;
+            hasDestination = false;
+
+            for (int i = 0; i < 8; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    matrix[i][j] = 0;
+                }
+            }
+            update();
+
+            step = 0;
+            ui->yourTurnlabel->hide();
+
+            menu->setEnabled(true);
+            menu2->setEnabled(false);
+
 
         });
 
@@ -135,17 +187,38 @@ ChessClient::ChessClient(QWidget *parent) :
     });
 
 
+    countTime = 60;
+    connect(&timerCount,&QTimer::timeout,
+            [=]()
+    {
+        ui->lcdNumber->display(countTime);
+
+        if(countTime==0)
+        {
+            timerCount.stop();
+            QByteArray block;
+            QDataStream out(&block, QIODevice::WriteOnly);
+            out.setVersion(QDataStream::Qt_4_3);
+            //先写一个0来给将要传出去的信息的大小数据占个位子
+            out << quint16(6666);
+            tcpClientSocket->write(block);
+            int ret = QMessageBox::information(this, "Lose", "[Time Out] You Lose! Please wait for Server's reaction.", QMessageBox::Ok);
+            switch (ret)
+            {
+            case QMessageBox::Ok:
+                this->setWindowTitle("Please wait for Server's reaction");
+                break;
+            default:
+                break;
+            }
+
+        }
+        countTime--;
+
+    });
 
     QIcon mainIcon(":/img/img/blackQueen.png");
     this->setWindowIcon(mainIcon);
-
-    for (int i = 0; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            matrix[i][j] = 0;
-        }
-    }
 
     focus = QPoint(-1,-1);
     curLeftClick = QPoint(-1,-1);
@@ -154,8 +227,7 @@ ChessClient::ChessClient(QWidget *parent) :
     hasDestination = false;
 
     step = 0;
-     ui->yourTurnlabel->setStyleSheet("color:white;background-color:red;");
-    ui->yourTurnlabel->hide();
+
 }
 
 ChessClient::~ChessClient()
@@ -232,7 +304,7 @@ void ChessClient::paintEvent(QPaintEvent *e)
                 brush.setColor(QColor(255,255,255,180));
                 p.setPen(Qt::NoPen);
                 p.setBrush(brush);
-                p.drawRect(curLeftClick.x()*unit,curLeftClick.y()*unit,unit,unit);
+
 
         //        for(int i=0;i<curClickPath.size();i++)
         //        {
@@ -246,6 +318,7 @@ void ChessClient::paintEvent(QPaintEvent *e)
                     int y = curClickPath[i].y();
                     p.drawRect(x*unit,y*unit,unit,unit);
                 }
+                p.drawRect(curLeftClick.x()*unit,curLeftClick.y()*unit,unit,unit);
                 curClickPath.clear();
             }
 
@@ -255,13 +328,14 @@ void ChessClient::paintEvent(QPaintEvent *e)
                 pen.setWidth(3);
                 p.setPen(pen);
                 p.setBrush(Qt::NoBrush);
-                p.drawRect(focus.x()*unit,focus.y()*unit,unit,unit);
+
                 for(int i=0;i<focusPath.size();i++)
                 {
                     int x = focusPath[i].x();
                     int y = focusPath[i].y();
                     p.drawRect(x*unit,y*unit,unit,unit);
                 }
+                p.drawRect(focus.x()*unit,focus.y()*unit,unit,unit);
             }
         }
 
@@ -355,6 +429,10 @@ void ChessClient::initial()
 
 void ChessClient::mousePressEvent(QMouseEvent *e)
 {
+    if(step%2 != 1)
+    {
+        return;
+    }
 
     QPoint curPoint=e->pos();
     QPoint centerIJ;
@@ -423,6 +501,9 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
 
 
                     update();
+                    timerCount.stop();
+                    countTime = 60;
+                    ui->lcdNumber->display(60);
                     step++;
                     qDebug()<<"This Client turn step = "<<step;
                     focusPath.clear();
@@ -437,6 +518,10 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
 
 void ChessClient::mouseDoubleClickEvent(QMouseEvent *e)
 {
+    if(step%2 != 1)
+    {
+        return;
+    }
     if(isSelected) return;
     QPoint curPoint=e->pos();
     QPoint centerIJ;
@@ -1014,4 +1099,30 @@ void ChessClient::setMovePoints(QPoint curClick)
         focusPath = curClickPath;
         curClickPath.clear();
     }
+}
+
+void ChessClient::playAgain()
+{
+    //这里就是重新来，不用再连接
+    ui->yourTurnlabel->hide();
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            matrix[i][j] = 0;
+        }
+    }
+
+    focus = QPoint(-1, -1);
+    curLeftClick = QPoint(-1, -1);
+    isSelected = false;
+    step = 0;
+    countTime = 60;
+
+    update();
+
+    menu->setEnabled(false);
+    actLoad->setEnabled(true);
+    actSave->setEnabled(true);
+
 }

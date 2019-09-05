@@ -41,16 +41,6 @@
      <set>Qt::AlignCenter</set>
     </property>
    </widget>
-   <widget class="QLCDNumber" name="lcdNumber">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>520</y>
-      <width>91</width>
-      <height>51</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QLabel" name="label_2">
     <property name="geometry">
      <rect>
@@ -64,7 +54,7 @@
      <string/>
     </property>
     <property name="pixmap">
-     <pixmap resource="img.qrc">:/img/img/blackKing.png</pixmap>
+     <pixmap resource="../ChessServer/img.qrc">:/img/img/blackKing.png</pixmap>
     </property>
     <property name="scaledContents">
      <bool>true</bool>
@@ -91,6 +81,28 @@
      <string>give up</string>
     </property>
    </widget>
+   <widget class="QLCDNumber" name="lcdNumber">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>520</y>
+      <width>91</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Sunken</enum>
+    </property>
+    <property name="midLineWidth">
+     <number>3</number>
+    </property>
+    <property name="digitCount">
+     <number>3</number>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -113,8 +125,6 @@
   <widget class="QStatusBar" name="statusBar"/>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <resources>
-  <include location="img.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>
