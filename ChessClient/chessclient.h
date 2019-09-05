@@ -59,16 +59,32 @@ private:
     QString ip;
     quint16 port;
 
-    bool isInitial;
+    QPoint focus;
+    QVector<QPoint> focusPath;
+    QVector<QPoint> curClickPath;
 
     void initial();
 
-    QPoint focus;
+    bool isSelected;
 
+    bool hasDestination;
+
+    QPoint curLeftClick;
+
+    QPixmap getPic(QPoint);
+
+    void setMovePoints(QPoint);
+
+    int step;
+
+    QPoint opposeOrigin;
+    QPoint opposeTo;
 
 
 protected:
     void paintEvent(QPaintEvent *e);
+    void mousePressEvent(QMouseEvent *e);
+    void mouseDoubleClickEvent(QMouseEvent *e);
 };
 
 #endif // CHESSCLIENT_H

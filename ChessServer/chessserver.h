@@ -79,8 +79,6 @@ private:
     QVector<QPoint> focusPath;
     QVector<QPoint> curClickPath;
 
-    bool isInitial;
-
     void initial();
 
     bool isSelected;
@@ -91,16 +89,12 @@ private:
 
     QPixmap getPic(QPoint);
 
-//    bool pawnMoved[8];
-
     void setMovePoints(QPoint);
 
     int step;
 
-    QTimer timerSend;
-
-    QString op;
-
+    QPoint opposeOrigin;
+    QPoint opposeTo;
 
 
 
