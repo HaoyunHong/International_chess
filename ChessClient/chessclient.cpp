@@ -25,7 +25,7 @@ ChessClient::ChessClient(QWidget *parent) :
     actLoad = menu2->addAction("load game");
     actSave = menu2->addAction("save game");
 
-    port = 6666;
+    port = 888;
 
     for (int i = 0; i < 8; i++)
     {
@@ -77,6 +77,19 @@ ChessClient::ChessClient(QWidget *parent) :
 
                         in>>nextBlockSize;
                         qDebug()<<"nextBlockSize: "<<nextBlockSize;
+                        if(nextBlockSize == 7777)
+                        {
+                            int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win!", QMessageBox::Ok);
+                            switch (ret)
+                            {
+                                case QMessageBox::Ok:
+                                    this->setWindowTitle("Please wait for Server's reaction");
+                                    break;
+                                default:
+                                    break;
+                            }
+                            break;
+                        }
                         if(nextBlockSize == 8888)
                         {
                             playAgain();
@@ -86,11 +99,11 @@ ChessClient::ChessClient(QWidget *parent) :
                             int ret = QMessageBox::information(this, "Win", "[Opposite Time Out] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
                             switch (ret)
                             {
-                            case QMessageBox::Ok:
-                                this->setWindowTitle("Please wait for Server's reaction");
-                                break;
-                            default:
-                                break;
+                                case QMessageBox::Ok:
+                                    this->setWindowTitle("Please wait for Server's reaction");
+                                    break;
+                                default:
+                                    break;
                             }
                             break;
                         }
@@ -135,6 +148,29 @@ ChessClient::ChessClient(QWidget *parent) :
                             qDebug()<<"Before Client turn step = "<<step;
                             update();
                             timerCount.start(1000);
+                    }
+
+                });
+
+                connect(ui->giveUpButton,&QPushButton::clicked,
+                        [=]()
+                {
+                    timerCount.stop();
+                    QByteArray block;
+                    QDataStream out(&block, QIODevice::WriteOnly);
+                    out.setVersion(QDataStream::Qt_4_3);
+                    //先写一个0来给将要传出去的信息的大小数据占个位子
+                    out << quint16(7777);
+                    tcpClientSocket->write(block);
+
+                    int ret = QMessageBox::information(this, "Lose", "[You Give Up] You Lose! Please wait for Server's reaction.", QMessageBox::Ok);
+                    switch (ret)
+                    {
+                    case QMessageBox::Ok:
+                        this->setWindowTitle("Please wait for Server's reaction");
+                        break;
+                    default:
+                        break;
                     }
 
                 });
@@ -1124,5 +1160,6 @@ void ChessClient::playAgain()
     menu->setEnabled(false);
     actLoad->setEnabled(true);
     actSave->setEnabled(true);
+    ui->lcdNumber->display(0);
 
 }

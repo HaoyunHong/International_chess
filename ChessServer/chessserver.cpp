@@ -31,7 +31,7 @@ ChessServer::ChessServer(QWidget *parent) :
     actLoad = menu2->addAction("load game");
     actSave = menu2->addAction("save game");
 
-    port = 6666;
+    port = 888;
 
     for (int i = 0; i < 8; i++)
     {
@@ -78,6 +78,28 @@ ChessServer::ChessServer(QWidget *parent) :
                 timerStart.start(1000);
             });
 
+            connect(ui->giveUpButton,&QPushButton::clicked,
+                    [=]()
+            {
+                timerCount.stop();
+                QByteArray block;
+                QDataStream out(&block, QIODevice::WriteOnly);
+                out.setVersion(QDataStream::Qt_4_3);
+                //先写一个0来给将要传出去的信息的大小数据占个位子
+                out << quint16(7777);
+                tcpServerSocket->write(block);
+
+                int ret = QMessageBox::information(this, "Lose", "[You Give Up] You Lose!", QMessageBox::Ok);
+                switch (ret)
+                {
+                case QMessageBox::Ok:
+                    choice();
+                    break;
+                default:
+                    break;
+                }
+            });
+
             connect(tcpServerSocket, &QTcpSocket::readyRead,
                 [=]()
             {
@@ -93,6 +115,19 @@ ChessServer::ChessServer(QWidget *parent) :
                     in >> nextBlockSize;
                     qDebug() << "nextBlockSize: " << nextBlockSize;
 
+                    if(nextBlockSize == 7777)
+                    {
+                        int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win!", QMessageBox::Ok);
+                        switch (ret)
+                        {
+                            case QMessageBox::Ok:
+                                choice();
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
+                    }
                     if(nextBlockSize == 6666)
                     {
                         int ret = QMessageBox::information(this, "Win", "[Opposite Time Out] You Win!", QMessageBox::Ok);
@@ -1228,6 +1263,7 @@ void ChessServer::playAgain()
     actInitial->setEnabled(true);
     actLoad->setEnabled(true);
     actSave->setEnabled(true);
+    ui->lcdNumber->display(0);
 
 
 }
