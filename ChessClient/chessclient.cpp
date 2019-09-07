@@ -24,7 +24,6 @@ ChessClient::ChessClient(QWidget *parent) :
     actClient = menu->addAction("Connect");
 
     menu2 = mBar->addMenu("Game");
-    actLoad = menu2->addAction("load game");
     actSave = menu2->addAction("save game");
 
     port = 888;
@@ -85,24 +84,31 @@ ChessClient::ChessClient(QWidget *parent) :
                         if(nextBlockSize == 12345)
                         {
                             ui->yourTurnlabel->hide();
-                            actLoad->setEnabled(true);
                             QString path;
                             in>>path;
-                            QString filePath = "Please load the draw file at " + path +" !";
-                            int ret = QMessageBox::information(this, "Load Draw File",filePath , QMessageBox::Ok);
-                            switch (ret)
+
+                            if(!isLoad)
                             {
-                                case QMessageBox::Ok:
-                                emit actLoad->triggered();
-                                isLoad = true;
-                                    break;
-                                default:
-                                    break;
+                                QString filePath = "Please load the draw file at " + path +" !";
+                                int ret = QMessageBox::information(this, "Load Draw File",filePath , QMessageBox::Ok);
+
+                                switch (ret)
+                                {
+                                    case QMessageBox::Ok:
+                                    qDebug()<<"open file";
+                                    openFile();
+                                    isLoad = true;
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
+
+                            break;
                         }
                         if(nextBlockSize == 7777)
                         {
-                            int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win!", QMessageBox::Ok);
+                            int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
                             switch (ret)
                             {
                                 case QMessageBox::Ok:
@@ -137,7 +143,6 @@ ChessClient::ChessClient(QWidget *parent) :
                             in>>oX;
                             qDebug()<<"Initial!";
                             initial();
-                            actLoad->setEnabled(false);
                             update();
                             break;
                         }
@@ -172,10 +177,11 @@ ChessClient::ChessClient(QWidget *parent) :
                             quint16 pro=0;
                             in>>pro;
                             qDebug()<<"in client pro: "<<pro;
-                            if(pro>0)
+                            if(pro>0&&pro<6)
                             {
                                 matrix[tX][tY] = pro;
                             }
+
 
 
                             qDebug()<<"Client receive point:";
@@ -183,58 +189,30 @@ ChessClient::ChessClient(QWidget *parent) :
                             qDebug()<<opposeTo;
 
                             step++;
+                            actSave->setEnabled(true);
                             qDebug()<<"Before Client turn step = "<<step;
                             update();
                             timerCount.start(1000);
+
+                            if(pro == 505)
+                            {
+                                timerCount.stop();
+                                int ret = QMessageBox::information(this, "Lose", "[Be Checkmated] You Lose!Please wait for Server's reaction.", QMessageBox::Ok);
+                                switch (ret)
+                                {
+                                case QMessageBox::Ok:
+                                    this->setWindowTitle("Please wait for Server's reaction");
+                                    break;
+                                default:
+                                    this->setWindowTitle("Please wait for Server's reaction");
+                                    break;
+                                }
+                            }
                     }
 
                 });
 
-                connect(actLoad,&QAction::triggered,
-                        [=]()
-                {
-                    QString path = QFileDialog::getOpenFileName(this,
-                        "Please choose a draw file", "../tests/", "TXT(*.txt)");
-                    //只有当文件不为空时才进行操作
-                    if (path.isEmpty() == false)
-                    {
-                        //文件操作
-                        QFile file(path);
-                        loadFile = new QFile(path);
-                        //打开文件，只读方式
-                        bool isOK = file.open(QIODevice::ReadOnly);
-                        if (isOK == true)
-                        {
-                            QByteArray array;
-                            while (file.atEnd() == false)
-                            {
-                                drawLineIndex++;
-                                //每次读一行
-                                array = file.readLine();
-                                fileParser(array);
-                            }
-                            if(step==1)
-                            {
-                                ui->yourTurnlabel->hide();
-                                timeStart.start(1000);
-                            }
-                            update();
-                            ui->yourTurnlabel->hide();
-                        }
-                        else if (isOK == false) {
-                            int ret = QMessageBox::warning(this, "Error", "Please choose another readable file as the draw file!", QMessageBox::Ok);
-                            switch (ret)
-                            {
-                            case QMessageBox::Ok:
-                                break;
-                            default:
-                                break;
-                            }
-                        }
-                        //关闭文件
-                        file.close();
-                    }
-                });
+
 
                 connect(ui->giveUpButton,&QPushButton::clicked,
                         [=]()
@@ -275,7 +253,6 @@ ChessClient::ChessClient(QWidget *parent) :
                 return;
             }
             menu->setEnabled(true);
-            actLoad->setEnabled(true);
             menu2->setEnabled(false);
             tcpClientSocket->close();
             tcpClientSocket = nullptr;
@@ -299,6 +276,11 @@ ChessClient::ChessClient(QWidget *parent) :
 
             menu->setEnabled(true);
             menu2->setEnabled(false);
+
+            timerCount.stop();
+            drawLineIndex =0;
+            isStart = false;
+            isLoad = false;
 
 
         });
@@ -363,9 +345,10 @@ ChessClient::ChessClient(QWidget *parent) :
 
     step = 0;
 
-    actLoad->setEnabled(false);
-
     drawLineIndex = 0;
+
+    actSave->setEnabled(false);
+
 
 }
 
@@ -373,6 +356,7 @@ ChessClient::~ChessClient()
 {
     delete ui;
 }
+
 
 void ChessClient::paintEvent(QPaintEvent *e)
 {
@@ -626,14 +610,52 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
                 centerIJ.setY(j*unit+unit/2);
                 QRect rec = QRect(o.x()+centerIJ.x()-unit/2,o.y()+centerIJ.y()-unit/2,unit,unit);
                 if(rec.contains(curPoint) && focusPath.contains(QPoint(i,j)))
-                { //
-                    qDebug()<<"RightButton";
+                {
+                    actSave->setEnabled(true);
                     hasDestination = true;
+
+                    bool isEating = false;
+                    if(matrix[i][j]==6)
+                    {
+                        isEating = true;
+                    }
 
                     matrix[i][j] = matrix[focus.x()][focus.y()];
                     matrix[focus.x()][focus.y()] = 0;
 
                     update();
+
+
+                    if(isEating)
+                    {
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(505);
+                        //找到那个0，再覆盖掉
+                        out.device()->seek(0);
+                        out << quint16(block.size() - sizeof(quint16));
+                        tcpClientSocket->write(block);
+
+                        qDebug()<<"Server send:";
+                        qDebug()<<quint16(block.size() - sizeof(quint16));
+                        qDebug()<<focus;
+                        qDebug()<<i<<","<<j;
+
+                        int ret = QMessageBox::information(this, "Win", "[Checkmate] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
+                        switch (ret)
+                        {
+                        case QMessageBox::Ok:
+                            this->setWindowTitle("Please wait for Server's reaction");
+                            break;
+                        default:
+                            this->setWindowTitle("Please wait for Server's reaction");
+                            break;
+                        }
+
+                        return;
+                    }
 
                     //如果此时满足兵升变的条件
                     qDebug()<<"j = "<<j;
@@ -1314,6 +1336,9 @@ void ChessClient::setMovePoints(QPoint curClick)
 
 void ChessClient::playAgain()
 {
+    actSave->setEnabled(false);
+    timerCount.stop();
+    drawLineIndex =0;
     isStart = false;
     isLoad = false;
     //这里就是重新来，不用再连接
@@ -1335,7 +1360,6 @@ void ChessClient::playAgain()
     update();
 
     menu->setEnabled(false);
-    actLoad->setEnabled(true);
     actSave->setEnabled(true);
     ui->lcdNumber->display(0);
 
@@ -1543,5 +1567,50 @@ void ChessClient::fileParser(QByteArray array)
         }
     }
 
+    qDebug()<<"In client fileParser step: "<<step;
 }
 
+void ChessClient::openFile()
+{
+    QString path = QFileDialog::getOpenFileName(this,
+        "[Client] Please choose a draw file", "../tests/", "TXT(*.txt)");
+    //只有当文件不为空时才进行操作
+    if (path.isEmpty() == false)
+    {
+        //文件操作
+        QFile file(path);
+        loadFile = new QFile(path);
+        //打开文件，只读方式
+        bool isOK = file.open(QIODevice::ReadOnly);
+        if (isOK == true)
+        {
+            QByteArray array;
+            while (file.atEnd() == false)
+            {
+                drawLineIndex++;
+                //每次读一行
+                array = file.readLine();
+                fileParser(array);
+            }
+            if (step == 1)
+            {
+                ui->yourTurnlabel->hide();
+                timeStart.start(1000);
+            }
+            update();
+            ui->yourTurnlabel->hide();
+        }
+        else if (isOK == false) {
+            int ret = QMessageBox::warning(this, "Error", "Please choose another readable file as the draw file!", QMessageBox::Ok);
+            switch (ret)
+            {
+            case QMessageBox::Ok:
+                break;
+            default:
+                break;
+            }
+        }
+        //关闭文件
+        file.close();
+    }
+}

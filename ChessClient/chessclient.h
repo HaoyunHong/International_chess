@@ -93,7 +93,6 @@ private:
     QAction *actClient;
 
     QMenu *menu2;
-    QAction *actLoad;
     QAction *actSave;
 
     void playAgain();
@@ -112,6 +111,8 @@ private:
     bool isLoad;
 
     pawnProDialog *pdlg;
+
+    void openFile();
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);

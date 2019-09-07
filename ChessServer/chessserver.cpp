@@ -75,9 +75,13 @@ ChessServer::ChessServer(QWidget *parent) :
             connect(actLoad,&QAction::triggered,
                     [=]
             {
-                isLoad = true;
+                actLoad->setEnabled(false);
+                qDebug()<<"actLoad!";
+
+                if(!isLoad)
+                {
                 QString path = QFileDialog::getOpenFileName(this,
-                    "Please choose a draw file", "../tests/", "TXT(*.txt)");
+                    "[Server] Please choose a draw file", "../tests/", "TXT(*.txt)");
                 //只有当文件不为空时才进行操作
                 if (path.isEmpty() == false)
                 {
@@ -128,6 +132,9 @@ ChessServer::ChessServer(QWidget *parent) :
                     //关闭文件
                     file.close();
                 }
+            }
+
+                isLoad = true;
             });
 
             connect(ui->giveUpButton,&QPushButton::clicked,
@@ -163,6 +170,11 @@ ChessServer::ChessServer(QWidget *parent) :
 
                 in.setVersion(QDataStream::Qt_4_3);
                 forever{
+
+                    if(tcpServerSocket==nullptr)
+                    {
+                        break;
+                    }
                     int oX,oY,tX,tY;
 
                     in >> nextBlockSize;
@@ -220,7 +232,6 @@ ChessServer::ChessServer(QWidget *parent) :
                         break;//说明后面的包不完整
                     }
 
-
                     in >> oX >> oY >> tX >> tY;
                         opposeOrigin = QPoint(oX,oY);
                         opposeTo = QPoint(tX,tY);
@@ -245,10 +256,26 @@ ChessServer::ChessServer(QWidget *parent) :
 
                         qDebug()<<"In server step: "<<step;
                         step++;
+                        actSave->setEnabled(true);
                         qDebug()<<"Before Server turn step = "<<step;
                         update();
 
                         timerCount.start(1000);
+
+                        if(pro == 505)
+                        {
+                            timerCount.stop();
+                            int ret = QMessageBox::information(this, "Lose", "[Be Checkmated] You Lose!", QMessageBox::Ok);
+                            switch (ret)
+                            {
+                            case QMessageBox::Ok:
+                                choice();
+                                break;
+                            default:
+                                choice();
+                                break;
+                            }
+                        }
                 }
 
             });
@@ -372,8 +399,6 @@ ChessServer::ChessServer(QWidget *parent) :
             default:
                 break;
             }
-
-
         }
         countTime--;
 
@@ -397,6 +422,7 @@ ChessServer::ChessServer(QWidget *parent) :
         }
     }
 
+    actSave->setEnabled(false);
 }
 
 ChessServer::~ChessServer()
@@ -664,13 +690,51 @@ void ChessServer::mousePressEvent(QMouseEvent *e)
                 centerIJ.setY(j*unit + unit / 2);
                 QRect rec = QRect(o.x() + centerIJ.x() - unit / 2, o.y() + centerIJ.y() - unit / 2, unit, unit);
                 if (rec.contains(curPoint) && focusPath.contains(QPoint(i, j)))
-                { //
-                    qDebug() << "Here!";
+                {
+                    actSave->setEnabled(true);
+
+                    bool isEating = false;
+
+                    if(matrix[i][j]==-6)
+                    {
+                        isEating=true;
+                    }
 
                     matrix[i][j] = matrix[focus.x()][focus.y()];
                     matrix[focus.x()][focus.y()] = 0;
 
                     update();
+
+                    if(isEating)
+                    {
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(505);
+                        //找到那个0，再覆盖掉
+                        out.device()->seek(0);
+                        out << quint16(block.size() - sizeof(quint16));
+                        tcpServerSocket->write(block);
+
+                        qDebug()<<"Server send:";
+                        qDebug()<<quint16(block.size() - sizeof(quint16));
+                        qDebug()<<focus;
+                        qDebug()<<i<<","<<j;
+
+                        int ret = QMessageBox::information(this, "Win", "[Checkmate] You Win!", QMessageBox::Ok);
+                        switch (ret)
+                        {
+                        case QMessageBox::Ok:
+                            choice();
+                            break;
+                        default:
+                            choice();
+                            break;
+                        }
+
+                        return;
+                    }
 
                     //qDebug()<<"j = "<<j;
                     if(j==0 && matrix[i][j]==1)
@@ -1369,6 +1433,9 @@ void ChessServer::choice()
 
 void ChessServer::playAgain()
 {
+    actSave->setEnabled(false);
+    timerCount.stop();
+    drawLineIndex=0;
     isStart = false;
     isLoad = false;
     QByteArray block;
@@ -1405,13 +1472,20 @@ void ChessServer::playAgain()
     actLoad->setEnabled(true);
     actSave->setEnabled(true);
     ui->lcdNumber->display(0);
-
-
 }
+
 
 void ChessServer::origin()
 {
+    actSave->setEnabled(false);
+    ui->lcdNumber->display(0);
+    drawLineIndex = 0;
+    isLoad = false;
+    isStart = false;
+    drawLineIndex = 0;
+
     this->setWindowTitle("Server");
+    timerCount.stop();
 
     ui->yourTurnlabel->hide();
 
@@ -1422,6 +1496,7 @@ void ChessServer::origin()
         {
         case QMessageBox::Yes:
             tcpServerServer->close();
+            tcpServerServer = nullptr;
             menu->setEnabled(true);
             break;
         case QMessageBox::No:
@@ -1435,8 +1510,13 @@ void ChessServer::origin()
     //主动和客户端端口断开连接
     tcpServerServer->close();
     tcpServerSocket->disconnectFromHost();
+
     tcpServerSocket->close();
+
+    qDebug()<<"In server tcpServerServer->disconnect(): "<<tcpServerServer->disconnect();;\
     tcpServerSocket = nullptr;
+    tcpServerServer = nullptr;
+
     this->setWindowTitle("Server canceled the connection");
     qDebug() << "Server Disconnected!";
     menu->setEnabled(true);

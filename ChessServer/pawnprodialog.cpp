@@ -94,6 +94,7 @@ void pawnProDialog::closeEvent(QCloseEvent *event)
         event->ignore();
         break;
     default:
+        event->ignore();
         break;
     }
 }
