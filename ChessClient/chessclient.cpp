@@ -77,6 +77,23 @@ ChessClient::ChessClient(QWidget *parent) :
 
                         in>>nextBlockSize;
                         qDebug()<<"nextBlockSize: "<<nextBlockSize;
+
+                        if(nextBlockSize == 12345)
+                        {
+                            actLoad->setEnabled(true);
+                            QString path;
+                            in>>path;
+                            QString filePath = "Please load the draw file at " + path +" !";
+                            int ret = QMessageBox::information(this, "Load Draw File",filePath , QMessageBox::Ok);
+                            switch (ret)
+                            {
+                                case QMessageBox::Ok:
+                                emit actLoad->triggered();
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
                         if(nextBlockSize == 7777)
                         {
                             int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win!", QMessageBox::Ok);
@@ -96,6 +113,7 @@ ChessClient::ChessClient(QWidget *parent) :
                         }
                         if(nextBlockSize == 6666)
                         {
+                            timerCount.stop();
                             int ret = QMessageBox::information(this, "Win", "[Opposite Time Out] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
                             switch (ret)
                             {
@@ -152,9 +170,56 @@ ChessClient::ChessClient(QWidget *parent) :
 
                 });
 
+                connect(actLoad,&QAction::triggered,
+                        [=]()
+                {
+                    QString path = QFileDialog::getOpenFileName(this,
+                        "Please choose a draw file", "../tests/", "TXT(*.txt)");
+                    //只有当文件不为空时才进行操作
+                    if (path.isEmpty() == false)
+                    {
+                        //文件操作
+                        QFile file(path);
+                        loadFile = new QFile(path);
+                        //打开文件，只读方式
+                        bool isOK = file.open(QIODevice::ReadOnly);
+                        if (isOK == true)
+                        {
+                            QByteArray array;
+                            while (file.atEnd() == false)
+                            {
+                                drawLineIndex++;
+                                //每次读一行
+                                array = file.readLine();
+                                fileParser(array);
+                            }
+                            if(step==1)
+                            {
+                                ui->yourTurnlabel->hide();
+                                timeStart.start(1000);
+                            }
+                            update();
+                            ui->yourTurnlabel->hide();
+                        }
+                        else if (isOK == false) {
+                            int ret = QMessageBox::warning(this, "Error", "Please choose another readable file as the draw file!", QMessageBox::Ok);
+                            switch (ret)
+                            {
+                            case QMessageBox::Ok:
+                                break;
+                            default:
+                                break;
+                            }
+                        }
+                        //关闭文件
+                        file.close();
+                    }
+                });
+
                 connect(ui->giveUpButton,&QPushButton::clicked,
                         [=]()
                 {
+                    ui->lcdNumber->display(0);
                     timerCount.stop();
                     QByteArray block;
                     QDataStream out(&block, QIODevice::WriteOnly);
@@ -222,13 +287,26 @@ ChessClient::ChessClient(QWidget *parent) :
 
     });
 
+    startTime = 3;
+    connect(&timeStart,&QTimer::timeout,
+            [=]()
+    {
+        ui->yourTurnlabel->hide();
+        ui->lcdNumber->display(startTime);
+        if(startTime==0)
+        {
+            ui->yourTurnlabel->show();
+            timerCount.start(1000);
+            timeStart.stop();
+        }
+        startTime--;
+    });
 
     countTime = 60;
     connect(&timerCount,&QTimer::timeout,
             [=]()
     {
         ui->lcdNumber->display(countTime);
-
         if(countTime==0)
         {
             timerCount.stop();
@@ -263,6 +341,10 @@ ChessClient::ChessClient(QWidget *parent) :
     hasDestination = false;
 
     step = 0;
+
+    actLoad->setEnabled(false);
+
+    drawLineIndex = 0;
 
 }
 
@@ -508,6 +590,7 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
 
     if(e->button() == Qt::RightButton)
     {
+        actSave->setEnabled(true);
         //qDebug()<<"Here!";
         //qDebug()<<"focusPath.size()"<<focusPath.size();
         for(int i=0;i<8;i++)
@@ -716,12 +799,12 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(i, y));
                 }
-                if (matrix[i][y] < 0)
+                if (matrix[i][y] > 0)
                 {
                     curClickPath.push_back(QPoint(i, y));
                     break;
                 }
-                if (matrix[i][y] > 0)
+                if (matrix[i][y] < 0)
                 {
                     break;
                 }
@@ -736,12 +819,12 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(i, y));
                 }
-                if (matrix[i][y] < 0)
+                if (matrix[i][y] > 0)
                 {
                     curClickPath.push_back(QPoint(i, y));
                     break;
                 }
-                if (matrix[i][y] > 0)
+                if (matrix[i][y] < 0)
                 {
                     break;
                 }
@@ -756,11 +839,11 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(x, j));
                 }
-                if (matrix[x][j] > 0)
+                if (matrix[x][j] < 0)
                 {
                     break;
                 }
-                if (matrix[x][j] < 0)
+                if (matrix[x][j] > 0)
                 {
                     curClickPath.push_back(QPoint(x, j));
                     break;
@@ -776,11 +859,11 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(x, j));
                 }
-                if (matrix[x][j] > 0)
+                if (matrix[x][j] < 0)
                 {
                     break;
                 }
-                if (matrix[x][j] < 0)
+                if (matrix[x][j] > 0)
                 {
                     curClickPath.push_back(QPoint(x, j));
                     break;
@@ -925,12 +1008,12 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(i, y));
                 }
-                if (matrix[i][y] < 0)
+                if (matrix[i][y] > 0)
                 {
                     curClickPath.push_back(QPoint(i, y));
                     break;
                 }
-                if (matrix[i][y] > 0)
+                if (matrix[i][y] < 0)
                 {
                     break;
                 }
@@ -945,12 +1028,12 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(i, y));
                 }
-                if (matrix[i][y] < 0)
+                if (matrix[i][y] > 0)
                 {
                     curClickPath.push_back(QPoint(i, y));
                     break;
                 }
-                if (matrix[i][y] > 0)
+                if (matrix[i][y] < 0)
                 {
                     break;
                 }
@@ -965,11 +1048,11 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(x, j));
                 }
-                if (matrix[x][j] > 0)
+                if (matrix[x][j] < 0)
                 {
                     break;
                 }
-                if (matrix[x][j] < 0)
+                if (matrix[x][j] > 0)
                 {
                     curClickPath.push_back(QPoint(x, j));
                     break;
@@ -985,11 +1068,11 @@ void ChessClient::setMovePoints(QPoint curClick)
                 {
                     curClickPath.push_back(QPoint(x, j));
                 }
-                if (matrix[x][j] > 0)
+                if (matrix[x][j] < 0)
                 {
                     break;
                 }
-                if (matrix[x][j] < 0)
+                if (matrix[x][j] > 0)
                 {
                     curClickPath.push_back(QPoint(x, j));
                     break;
@@ -1163,3 +1246,208 @@ void ChessClient::playAgain()
     ui->lcdNumber->display(0);
 
 }
+
+void ChessClient::fileParser(QByteArray array)
+{
+
+    QString str(array);
+    qDebug()<<"In fileParser: "<<str;
+    QStringList strList = str.split(" ");
+
+    int num = 0;
+
+    QPoint* chessPos;
+
+    qDebug()<<"drawLineIndex = "<<drawLineIndex;
+
+    if(drawLineIndex == 1)
+    {
+        if(strList[0].contains("white"))
+        {
+            qDebug()<<"white first!";
+            step = 0;
+            isMine = false;
+        }
+        else if(strList[0].contains("black"))
+        {
+            qDebug()<<"black first!";
+            step = 1;
+            isMine = true;
+        }
+
+    }
+    else {
+        if(strList[0].contains("white"))
+        {
+            qDebug()<<"white second!";
+            isMine = false;
+        }
+        else if(strList[0].contains("black"))
+        {
+            qDebug()<<"black second!";
+            isMine = true;
+        }
+
+        if(strList.size()>2)
+        {
+            num = strList[1].toInt();
+            chessPos = new QPoint[num];
+
+            for(int i=2;i<num+2;i++)
+            {
+                if(strList[i][0]=="a")
+                {
+                    chessPos[i-2].setX(0);
+                }
+                if(strList[i][0]=="b")
+                {
+                    chessPos[i-2].setX(1);
+                }
+                if(strList[i][0]=="c")
+                {
+                    chessPos[i-2].setX(2);
+                }
+                if(strList[i][0]=="d")
+                {
+                    chessPos[i-2].setX(3);
+                }
+                if(strList[i][0]=="e")
+                {
+                    chessPos[i-2].setX(4);
+                }
+                if(strList[i][0]=="f")
+                {
+                    chessPos[i-2].setX(5);
+                }
+                if(strList[i][0]=="g")
+                {
+                    chessPos[i-2].setX(6);
+                }
+                if(strList[i][0]=="h")
+                {
+                    chessPos[i-2].setX(7);
+                }
+                if(strList[i][1]=="1")
+                {
+                    chessPos[i-2].setY(7);
+                }
+                if(strList[i][1]=="2")
+                {
+                    chessPos[i-2].setY(6);
+                }
+                if(strList[i][1]=="3")
+                {
+                    chessPos[i-2].setY(5);
+                }
+                if(strList[i][1]=="4")
+                {
+                    chessPos[i-2].setY(4);
+                }
+                if(strList[i][1]=="5")
+                {
+                    chessPos[i-2].setY(3);
+                }
+                if(strList[i][1]=="6")
+                {
+                    chessPos[i-2].setY(2);
+                }
+                if(strList[i][1]=="7")
+                {
+                    chessPos[i-2].setY(1);
+                }
+                if(strList[i][1]=="8")
+                {
+                    chessPos[i-2].setY(0);
+                }
+            }
+
+            qDebug()<<"isMine: "<<isMine;
+            if(strList[0]=="king")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-6;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=6;
+                    }
+                }
+            }
+            if(strList[0]=="queen")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-5;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=5;
+                    }
+                }
+            }
+            if(strList[0]=="bishop")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-4;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=4;
+                    }
+                }
+            }
+            if(strList[0]=="horse")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-3;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=3;
+                    }
+                }
+            }
+            if(strList[0]=="rook")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-2;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=2;
+                    }
+                }
+            }
+            if(strList[0]=="pawn")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-1;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=1;
+                    }
+                }
+            }
+        }
+
+
+        for(int j=0;j<num;j++)
+        {
+            qDebug()<<drawLineIndex<<": chessPos["<<j<<"]"<<chessPos[j];
+        }
+    }
+
+}
+

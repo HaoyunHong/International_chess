@@ -95,7 +95,16 @@ private:
 
     void playAgain();
 
+    QFile *loadFile;
 
+    void fileParser(QByteArray array);
+
+    int drawLineIndex;
+
+    bool isMine;
+
+    QTimer timeStart;
+    int startTime;
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);

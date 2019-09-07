@@ -116,7 +116,13 @@ private:
     void origin();
     void playAgain();
 
+    bool isLoad;
+    QFile* loadFile;
+    void fileParser(QByteArray array);
 
+    int drawLineIndex;
+
+    bool isMine;
 
 protected:
     void paintEvent(QPaintEvent *e);

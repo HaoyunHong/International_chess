@@ -33,14 +33,6 @@ ChessServer::ChessServer(QWidget *parent) :
 
     port = 888;
 
-    for (int i = 0; i < 8; i++)
-    {
-        for (int j = 0; j < 8; j++)
-        {
-            matrix[i][j] = 0;
-        }
-    }
-
     //ip也是要可编辑的
     connect(actServer, &QAction::triggered,
         [=]()
@@ -78,9 +70,68 @@ ChessServer::ChessServer(QWidget *parent) :
                 timerStart.start(1000);
             });
 
+            connect(actLoad,&QAction::triggered,
+                    [=]
+            {
+                isLoad = true;
+                QString path = QFileDialog::getOpenFileName(this,
+                    "Please choose a draw file", "../tests/", "TXT(*.txt)");
+                //只有当文件不为空时才进行操作
+                if (path.isEmpty() == false)
+                {
+                    //文件操作
+                    QFile file(path);
+                    loadFile = new QFile(path);
+                    //打开文件，只读方式
+                    bool isOK = file.open(QIODevice::ReadOnly);
+                    if (isOK == true)
+                    {
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        qDebug()<<"path = "<<path;
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(12345)<<path;
+                        tcpServerSocket->write(block);
+
+                        QByteArray array;
+                        while (file.atEnd() == false)
+                        {
+                            drawLineIndex++;
+                            qDebug()<<"In init drawLineIndex = "<<drawLineIndex;
+                            //每次读一行
+                            array = file.readLine();
+                            fileParser(array);
+                        }
+                        update();
+                        ui->yourTurnlabel->hide();
+
+
+                        if(step==-1)
+                        {
+                            timerStart.start(1000);
+                        }
+
+                    }
+                    else if (isOK == false) {
+                        int ret = QMessageBox::warning(this, "Error", "Please choose another readable file as the draw file!", QMessageBox::Ok);
+                        switch (ret)
+                        {
+                        case QMessageBox::Ok:
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                    //关闭文件
+                    file.close();
+                }
+            });
+
             connect(ui->giveUpButton,&QPushButton::clicked,
                     [=]()
             {
+                ui->lcdNumber->display(0);
                 timerCount.stop();
                 QByteArray block;
                 QDataStream out(&block, QIODevice::WriteOnly);
@@ -130,6 +181,7 @@ ChessServer::ChessServer(QWidget *parent) :
                     }
                     if(nextBlockSize == 6666)
                     {
+                        timerCount.stop();
                         int ret = QMessageBox::information(this, "Win", "[Opposite Time Out] You Win!", QMessageBox::Ok);
                         switch (ret)
                         {
@@ -248,24 +300,33 @@ ChessServer::ChessServer(QWidget *parent) :
         ui->lcdNumber->display(startTime);
         if(startTime==0)
         {
-            timerCount.start(1000);
-            timerStart.stop();
-            initial();
             ui->yourTurnlabel->show();
-            step++;
-            QByteArray block;
-            QDataStream out(&block, QIODevice::WriteOnly);
-            out.setVersion(QDataStream::Qt_4_3);
-            QString str;
-            int oX = -1;
-            out << quint16(0) << oX;
-            out.device()->seek(0);
-            out << quint16(block.size() - sizeof(quint16));
-            tcpServerSocket->write(block);
-            actInitial->setEnabled(false);
-            actLoad->setEnabled(false);
-            update();
-
+            if(!isLoad)
+            {
+                timerCount.start(1000);
+                timerStart.stop();
+                initial();
+                step++;
+                QByteArray block;
+                QDataStream out(&block, QIODevice::WriteOnly);
+                out.setVersion(QDataStream::Qt_4_3);
+                QString str;
+                int oX = -1;
+                out << quint16(0) << oX;
+                out.device()->seek(0);
+                out << quint16(block.size() - sizeof(quint16));
+                tcpServerSocket->write(block);
+                actInitial->setEnabled(false);
+                actLoad->setEnabled(false);
+                update();
+            }
+            else if(isLoad&&step==-1)
+            {
+                step++;
+                qDebug()<<"Load begin!";
+                timerCount.start(1000);
+                timerStart.stop();
+            }
         }
         startTime--;
 
@@ -309,6 +370,17 @@ ChessServer::ChessServer(QWidget *parent) :
     isSelected = false;
 
     step = -1;
+
+    drawLineIndex = 0;
+    isLoad = false;
+
+    for(int i=0;i<8;i++)
+    {
+        for(int j=0;j<8;j++)
+        {
+            matrix[i][j]=0;
+        }
+    }
 
 }
 
@@ -532,13 +604,12 @@ void ChessServer::mousePressEvent(QMouseEvent *e)
 
     if (e->button() == Qt::LeftButton)
     {
-        qDebug()<<"Here!";
+        qDebug()<<"LeftButton";
         if (isSelected)
         {
             curLeftClick = QPoint(-1, -1);
             return;
         }
-        qDebug()<<"Here!";
 
 
         for (int i = 0; i < 8; i++)
@@ -564,6 +635,7 @@ void ChessServer::mousePressEvent(QMouseEvent *e)
 
     if (e->button() == Qt::RightButton)
     {
+        actSave->setEnabled(true);
         //qDebug()<<"Here!";
         //qDebug()<<"focusPath.size()"<<focusPath.size();
         for (int i = 0; i < 8; i++)
@@ -1257,6 +1329,9 @@ void ChessServer::playAgain()
     startTime = 3;
     countTime = 60;
 
+    drawLineIndex = 0;
+    isLoad = false;
+
     update();
 
     menu->setEnabled(false);
@@ -1320,7 +1395,211 @@ void ChessServer::origin()
     }
     update();
     qDebug() << "Server Cancel!";
+}
 
+
+
+void ChessServer::fileParser(QByteArray array)
+{
+    QString str(array);
+    qDebug()<<"In fileParser: "<<str;
+    QStringList strList = str.split(" ");
+
+    int num = 0;
+
+    QPoint* chessPos;
+
+    qDebug()<<"drawLineIndex = "<<drawLineIndex;
+
+    if(drawLineIndex == 1)
+    {
+        if(strList[0].contains("white"))
+        {
+            qDebug()<<"white first!";
+            step = -1;
+            isMine = true;
+        }
+        else if(strList[0].contains("black"))
+        {
+            qDebug()<<"black first!";
+            step = 1;
+            isMine = false;
+        }
+
+    }
+    else {
+        if(strList[0].contains("white"))
+        {
+            qDebug()<<"white second!";
+            isMine = true;
+        }
+        else if(strList[0].contains("black"))
+        {
+            qDebug()<<"black second!";
+            isMine = false;
+        }
+
+        if(strList.size()>2)
+        {
+            num = strList[1].toInt();
+            chessPos = new QPoint[num];
+
+            for(int i=2;i<num+2;i++)
+            {
+                if(strList[i][0]=="a")
+                {
+                    chessPos[i-2].setX(0);
+                }
+                if(strList[i][0]=="b")
+                {
+                    chessPos[i-2].setX(1);
+                }
+                if(strList[i][0]=="c")
+                {
+                    chessPos[i-2].setX(2);
+                }
+                if(strList[i][0]=="d")
+                {
+                    chessPos[i-2].setX(3);
+                }
+                if(strList[i][0]=="e")
+                {
+                    chessPos[i-2].setX(4);
+                }
+                if(strList[i][0]=="f")
+                {
+                    chessPos[i-2].setX(5);
+                }
+                if(strList[i][0]=="g")
+                {
+                    chessPos[i-2].setX(6);
+                }
+                if(strList[i][0]=="h")
+                {
+                    chessPos[i-2].setX(7);
+                }
+                if(strList[i][1]=="1")
+                {
+                    chessPos[i-2].setY(7);
+                }
+                if(strList[i][1]=="2")
+                {
+                    chessPos[i-2].setY(6);
+                }
+                if(strList[i][1]=="3")
+                {
+                    chessPos[i-2].setY(5);
+                }
+                if(strList[i][1]=="4")
+                {
+                    chessPos[i-2].setY(4);
+                }
+                if(strList[i][1]=="5")
+                {
+                    chessPos[i-2].setY(3);
+                }
+                if(strList[i][1]=="6")
+                {
+                    chessPos[i-2].setY(2);
+                }
+                if(strList[i][1]=="7")
+                {
+                    chessPos[i-2].setY(1);
+                }
+                if(strList[i][1]=="8")
+                {
+                    chessPos[i-2].setY(0);
+                }
+            }
+
+            qDebug()<<"isMine: "<<isMine;
+            if(strList[0]=="king")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=6;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-6;
+                    }
+                }
+            }
+            if(strList[0]=="queen")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=5;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-5;
+                    }
+                }
+            }
+            if(strList[0]=="bishop")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=4;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-4;
+                    }
+                }
+            }
+            if(strList[0]=="horse")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=3;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-3;
+                    }
+                }
+            }
+            if(strList[0]=="rook")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=2;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-2;
+                    }
+                }
+            }
+            if(strList[0]=="pawn")
+            {
+                for(int i=0;i<num;i++)
+                {
+                    if(isMine)
+                    {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=1;
+                    }
+                    else {
+                        matrix[chessPos[i].x()][chessPos[i].y()]=-1;
+                    }
+                }
+            }
+        }
+
+
+        for(int j=0;j<num;j++)
+        {
+            qDebug()<<drawLineIndex<<": chessPos["<<j<<"]"<<chessPos[j];
+        }
+    }
 
 }
+
 
