@@ -123,6 +123,9 @@ private:
 
     QString nameOut;
 
+    void getPath(QPoint p);
+    QVector<QPoint> dangerPoints;
+
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);
