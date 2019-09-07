@@ -75,6 +75,25 @@ ChessClient::ChessClient(QWidget *parent) :
                         in >> nextBlockSize;
                         qDebug() << "nextBlockSize: " << nextBlockSize;
 
+                        if(nextBlockSize == 8000)
+                        {
+                            QPoint kingT;
+                            in>>kingT;
+                            QPoint rookO;
+                            in>>rookO;
+                            QPoint rookT;
+                            in>>rookT;
+                            matrix[4][7]=0;
+                            matrix[kingT.x()][kingT.y()]=6;
+                            matrix[rookO.x()][rookO.y()]=0;
+                            matrix[rookT.x()][rookT.y()]=2;
+                            update();
+
+                            step++;
+                            qDebug() << "Before Client turn step = " << step;
+                            timerCount.start(1000);
+                            return;
+                        }
                         if(nextBlockSize == 1111)
                         {
                             in>>nameOut;

@@ -723,6 +723,58 @@ void ChessServer::mousePressEvent(QMouseEvent *e)
                 QRect rec = QRect(o.x() + centerIJ.x() - unit / 2, o.y() + centerIJ.y() - unit / 2, unit, unit);
                 if (rec.contains(curPoint) && focusPath.contains(QPoint(i, j)))
                 {
+                    if (focus == QPoint(4, 7) && matrix[focus.x()][focus.y()] == 6 && (QPoint(i, j) == QPoint(1, 7) || QPoint(i, j) == QPoint(2, 7) || QPoint(i, j) == QPoint(6, 7)))
+                    {
+                        matrix[i][j] = matrix[focus.x()][focus.y()];
+                        matrix[focus.x()][focus.y()] = 0;
+
+                        QPoint kingT = QPoint(i, j);
+                        QPoint rookO;
+                        QPoint rookT;
+                        if (QPoint(i, j) == QPoint(1, 7))
+                        {
+                            matrix[0][7] = 0;
+                            matrix[2][7] = 2;
+                            rookO = QPoint(0, 7);
+                            rookT = QPoint(2, 7);
+                        }
+                        if (QPoint(i, j) == QPoint(2, 7))
+                        {
+                            matrix[0][7] = 0;
+                            matrix[3][7] = 2;
+                            rookO = QPoint(0, 7);
+                            rookT = QPoint(3, 7);
+                        }
+                        if (QPoint(i, j) == QPoint(6, 7))
+                        {
+                            matrix[7][7] = 0;
+                            matrix[5][7] = 2;
+                            rookO = QPoint(7, 7);
+                            rookT = QPoint(5, 7);
+                        }
+
+                        update();
+
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(8000) << QPoint(i, j) << rookO << rookT;
+                        tcpServerSocket->write(block);
+
+                        timerCount.stop();
+                        ui->lcdNumber->display(60);
+                        countTime = 60;
+
+                        focusPath.clear();
+                        focus = QPoint(-1, -1);
+                        step++;
+                        qDebug()<<"This Server turn step = "<<step;
+                        isSelected = false;
+                        ui->yourTurnlabel->hide();
+
+                        return;
+                    }
                     actSave->setEnabled(true);
 
                     bool isEating = false;
@@ -1396,6 +1448,71 @@ void ChessServer::setMovePoints(QPoint curClick)
     if (matrix[x][y] == 6)
     {
         qDebug() << "wKing!";
+        if(QPoint(x,y)==QPoint(4,7))
+        {
+            dangerPoints.clear();
+            QVector<QPoint> otherSide;
+            for(int i=0;i<8;i++)
+            {
+                for(int j=0;j<8;j++)
+                {
+                     if(matrix[i][j]<0)
+                     {
+                          qDebug()<<"otherSide: "<<QPoint(i,j);
+                          otherSide.push_back(QPoint(i,j));
+                      }
+                }
+            }
+            for(int i=0;i<otherSide.size();i++)
+            {
+                getPath(otherSide[i]);
+            }
+
+
+            if(matrix[0][7]==2 && matrix[1][7]==0 && matrix[2][7]==0 && matrix[3][7]==0)
+            {
+                bool canLong=true;
+                int cnt=0;
+                for(int i=0;i<dangerPoints.size();i++)
+                {
+                    qDebug()<<"dangerPoints["<<i<<"]: "<<dangerPoints[i];
+                    if(dangerPoints[i]!=QPoint(4,7)  && dangerPoints[i]!=QPoint(2,7) && dangerPoints[i]!=QPoint(3,7))
+                    {
+                        cnt++;
+                        if(dangerPoints[i]==QPoint(1,7))
+                        {
+                            canLong = false;
+                        }
+                    }
+                }
+                if(cnt==dangerPoints.size())
+                {
+                    if(canLong)
+                    {
+                        curClickPath.push_back(QPoint(1,7));
+                    }
+                    curClickPath.push_back(QPoint(2,7));
+                }
+            }
+
+            if(matrix[7][7]==2 && matrix[6][7]==0 && matrix[5][7]==0)
+            {
+                int cnt=0;
+                for(int i=0;i<dangerPoints.size();i++)
+                {
+                    if(dangerPoints[i]!=QPoint(4,7)  && dangerPoints[i]!=QPoint(5,7) && dangerPoints[i]!=QPoint(6,7))
+                    {
+                        cnt++;
+                    }
+                }
+                if(cnt==dangerPoints.size())
+                {
+                    curClickPath.push_back(QPoint(6,7));
+                }
+            }
+
+
+        }
         if (x > 0 && matrix[x - 1][y] <= 0)
         {
             curClickPath.push_back(QPoint(x - 1, y));
@@ -1996,5 +2113,428 @@ void ChessServer::saveDraw()
             }
         }
         file.close();
+    }
+}
+
+void ChessServer::getPath(QPoint p)
+{
+    int x = p.x();
+    int y = p.y();
+    if (matrix[x][y] == -1)
+    {
+        qDebug() << "bPawn!";
+        QPoint p(x, y + 1);
+        if (matrix[x][y + 1] == 0)
+        {
+            dangerPoints.push_back(p);
+            if (y == 1)
+            {
+                dangerPoints.push_back(QPoint(x, 3));
+            }
+        }
+        if (x > 0 && y < 7 && matrix[x - 1][y + 1]>0)
+        {
+            dangerPoints.push_back(QPoint(x - 1, y + 1));
+        }
+        if (x < 7 && y < 7 && matrix[x + 1][y + 1]>0)
+        {
+            dangerPoints.push_back(QPoint(x + 1, y + 1));
+        }
+    }
+
+    if (matrix[x][y] == -2)
+    {
+        qDebug() << "bRook!";
+        if (x < 7)
+        {
+            for (int i = x + 1; i < 8; i++)
+            {
+                if (matrix[i][y] == 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                }
+                if (matrix[i][y] > 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                    break;
+                }
+                if (matrix[i][y] < 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (x > 0)
+        {
+            for (int i = x - 1; i >= 0; i--)
+            {
+                if (matrix[i][y] == 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                }
+                if (matrix[i][y] > 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                    break;
+                }
+                if (matrix[i][y] < 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (y < 7)
+        {
+            for (int j = y + 1; j < 8; j++)
+            {
+                if (matrix[x][j] == 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                }
+                if (matrix[x][j] < 0)
+                {
+                    break;
+                }
+                if (matrix[x][j] > 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                    break;
+                }
+            }
+        }
+
+        if (y > 0)
+        {
+            for (int j = y - 1; j >= 0; j--)
+            {
+                if (matrix[x][j] == 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                }
+                if (matrix[x][j] < 0)
+                {
+                    break;
+                }
+                if (matrix[x][j] > 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                    break;
+                }
+            }
+        }
+
+        //        for(int i=0;i<curClickPath.size();i++)
+        //        {
+        //            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
+        //            {
+        //                curClickPath.remove(i);
+        //            }
+        //        }
+
+    }
+
+    if (matrix[x][y] == -3)
+    {
+        qDebug() << "bKnight!";
+        for (int i = 0; i < 8; i++)
+        {
+            for (int j = 0; j < 8; j++)
+            {
+                if ((i - x)*(i - x) + (j - y)*(j - y) == 5 && matrix[i][j] >= 0)
+                {
+                    dangerPoints.push_back(QPoint(i, j));
+                }
+            }
+        }
+    }
+
+    if (matrix[x][y] == -4)
+    {
+        qDebug() << "bBishop!";
+        int _x = x;
+        int _y = y;
+        while (_x > 0 && _y > 0)
+        {
+            _x--;
+            _y--;
+            if (matrix[_x][_y] == 0)
+            {
+                dangerPoints.push_back(QPoint(_x, _y));
+            }
+            else if (matrix[_x][_y] < 0)
+            {
+                break;
+            }
+            else if (matrix[_x][_y] > 0)
+            {
+                dangerPoints.push_back(QPoint(_x, _y));
+                break;
+            }
+        }
+        int x_ = x;
+        int y_ = y;
+        while (x_ < 7 && y_ < 7)
+        {
+            x_++;
+            y_++;
+            if (matrix[x_][y_] == 0)
+            {
+                dangerPoints.push_back(QPoint(x_, y_));
+            }
+            else if (matrix[x_][y_] < 0)
+            {
+                break;
+            }
+            else if (matrix[x_][y_] > 0)
+            {
+                dangerPoints.push_back(QPoint(x_, y_));
+                break;
+            }
+        }
+        int __x = x;
+        int __y = y;
+        while (__x > 0 && __y < 7)
+        {
+            __x--;
+            __y++;
+            if (matrix[__x][__y] == 0)
+            {
+                dangerPoints.push_back(QPoint(__x, __y));
+            }
+            else if (matrix[__x][__y] < 0)
+            {
+                break;
+            }
+            else if (matrix[__x][__y] > 0)
+            {
+                dangerPoints.push_back(QPoint(__x, __y));
+                break;
+            }
+        }
+        int x__ = x;
+        int y__ = y;
+        while (x__ < 7 && y__>0)
+        {
+            x__++;
+            y__--;
+            if (matrix[x__][y__] == 0)
+            {
+                dangerPoints.push_back(QPoint(x__, y__));
+            }
+            else if (matrix[x__][y__] < 0)
+            {
+                break;
+            }
+            else if (matrix[x__][y__] > 0)
+            {
+                dangerPoints.push_back(QPoint(x__, y__));
+                break;
+            }
+        }
+    }
+
+    if (matrix[x][y] == -5)
+    {
+        qDebug() << "bQueen!";
+        if (x < 7)
+        {
+            for (int i = x + 1; i < 8; i++)
+            {
+                if (matrix[i][y] == 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                }
+                if (matrix[i][y] > 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                    break;
+                }
+                if (matrix[i][y] < 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (x > 0)
+        {
+            for (int i = x - 1; i >= 0; i--)
+            {
+                if (matrix[i][y] == 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                }
+                if (matrix[i][y] > 0)
+                {
+                    dangerPoints.push_back(QPoint(i, y));
+                    break;
+                }
+                if (matrix[i][y] < 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (y < 7)
+        {
+            for (int j = y + 1; j < 8; j++)
+            {
+                if (matrix[x][j] == 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                }
+                if (matrix[x][j] < 0)
+                {
+                    break;
+                }
+                if (matrix[x][j] > 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                    break;
+                }
+            }
+        }
+
+        if (y > 0)
+        {
+            for (int j = y - 1; j >= 0; j--)
+            {
+                if (matrix[x][j] == 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                }
+                if (matrix[x][j] < 0)
+                {
+                    break;
+                }
+                if (matrix[x][j] > 0)
+                {
+                    dangerPoints.push_back(QPoint(x, j));
+                    break;
+                }
+            }
+        }
+
+
+        int _x = x;
+        int _y = y;
+        while (_x > 0 && _y > 0)
+        {
+            _x--;
+            _y--;
+            if (matrix[_x][_y] == 0)
+            {
+                dangerPoints.push_back(QPoint(_x, _y));
+            }
+            else if (matrix[_x][_y] < 0)
+            {
+                break;
+            }
+            else if (matrix[_x][_y] > 0)
+            {
+                dangerPoints.push_back(QPoint(_x, _y));
+                break;
+            }
+        }
+        int x_ = x;
+        int y_ = y;
+        while (x_ < 7 && y_ < 7)
+        {
+            x_++;
+            y_++;
+            if (matrix[x_][y_] == 0)
+            {
+                dangerPoints.push_back(QPoint(x_, y_));
+            }
+            else if (matrix[x_][y_] < 0)
+            {
+                break;
+            }
+            else if (matrix[x_][y_] > 0)
+            {
+                dangerPoints.push_back(QPoint(x_, y_));
+                break;
+            }
+        }
+        int __x = x;
+        int __y = y;
+        while (__x > 0 && __y < 7)
+        {
+            __x--;
+            __y++;
+            if (matrix[__x][__y] == 0)
+            {
+                dangerPoints.push_back(QPoint(__x, __y));
+            }
+            else if (matrix[__x][__y] < 0)
+            {
+                break;
+            }
+            else if (matrix[__x][__y] > 0)
+            {
+                dangerPoints.push_back(QPoint(__x, __y));
+                break;
+            }
+        }
+        int x__ = x;
+        int y__ = y;
+        while (x__ < 7 && y__>0)
+        {
+            x__++;
+            y__--;
+            if (matrix[x__][y__] == 0)
+            {
+                dangerPoints.push_back(QPoint(x__, y__));
+            }
+            else if (matrix[x__][y__] < 0)
+            {
+                break;
+            }
+            else if (matrix[x__][y__] > 0)
+            {
+                dangerPoints.push_back(QPoint(x__, y__));
+                break;
+            }
+        }
+    }
+
+    if (matrix[x][y] == -6)
+    {
+        qDebug() << "bKing!";
+        if (x > 0 && matrix[x - 1][y] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x - 1, y));
+        }
+        if (x > 0 && y > 0 && matrix[x - 1][y - 1] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x - 1, y - 1));
+        }
+        if (x > 0 && y < 7 && matrix[x - 1][y + 1] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x - 1, y + 1));
+        }
+        if (y > 0 && matrix[x][y - 1] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x, y - 1));
+        }
+        if (y < 7 && matrix[x][y + 1] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x, y + 1));
+        }
+        if (x < 7 && y>0 && matrix[x + 1][y - 1] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x + 1, y - 1));
+        }
+        if (x < 7 && matrix[x + 1][y] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x + 1, y));
+        }
+        if (x < 7 && y < 7 && matrix[x + 1][y + 1] >= 0)
+        {
+            dangerPoints.push_back(QPoint(x + 1, y + 1));
+        }
     }
 }

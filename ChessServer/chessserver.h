@@ -137,6 +137,9 @@ private:
     void saveFill();
     void saveDraw();
 
+    void getPath(QPoint);
+    QVector<QPoint> dangerPoints;
+
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);
