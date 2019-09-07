@@ -2,7 +2,6 @@
     <qresource prefix="/img">
         <file>img/backb.jpg</file>
         <file>img/blackBishop.png</file>
-        <file>img/blackHorse.png</file>
         <file>img/blackKing.png</file>
         <file>img/blackPawn.png</file>
         <file>img/blackQueen.png</file>
@@ -11,11 +10,12 @@
         <file>img/frame.jpg</file>
         <file>img/kuang.jpg</file>
         <file>img/whiteBishop.png</file>
-        <file>img/whiteHorse.png</file>
         <file>img/whiteKing.png</file>
         <file>img/whitePawn.png</file>
         <file>img/whiteQueen.png</file>
         <file>img/whiteRook.png</file>
         <file>img/wood.jpg</file>
+        <file>img/whiteKnight.png</file>
+        <file>img/blackKnight.png</file>
     </qresource>
 </RCC>

@@ -69,6 +69,8 @@ ChessServer::ChessServer(QWidget *parent) :
             connect(actInitial, &QAction::triggered,
                 [=]()
             {
+                actInitial->setEnabled(false);
+                actLoad->setEnabled(false);
                 timerStart.start(1000);
             });
 
@@ -81,10 +83,11 @@ ChessServer::ChessServer(QWidget *parent) :
                 if(!isLoad)
                 {
                 QString path = QFileDialog::getOpenFileName(this,
-                    "[Server] Please choose a draw file", "../tests/", "TXT(*.txt)");
+                    "[Server] Please choose a draw file", "../serverDrawSave/", "TXT(*.txt)");
                 //只有当文件不为空时才进行操作
                 if (path.isEmpty() == false)
                 {
+                    actInitial->setEnabled(false);
                     //文件操作
                     QFile file(path);
                     loadFile = new QFile(path);
@@ -95,9 +98,11 @@ ChessServer::ChessServer(QWidget *parent) :
                         QByteArray block;
                         QDataStream out(&block, QIODevice::WriteOnly);
                         out.setVersion(QDataStream::Qt_4_3);
-                        qDebug()<<"path = "<<path;
+
+                        QStringList pathList = path.split("/");
+                        qDebug()<<"pathList[pathList.size()-1]"<<pathList[pathList.size()-1];
                         //先写一个0来给将要传出去的信息的大小数据占个位子
-                        out << quint16(12345)<<path;
+                        out << quint16(12345)<<pathList[pathList.size()-1];
                         tcpServerSocket->write(block);
 
                         QByteArray array;
@@ -409,6 +414,26 @@ ChessServer::ChessServer(QWidget *parent) :
 
     });
 
+    connect(actSave,&QAction::triggered,
+            [=]()
+    {
+        int ret = QMessageBox::question(this, "Save", "Do you want to quit the game and save the draw?", QMessageBox::Yes|QMessageBox::No);
+        switch (ret)
+        {
+        case QMessageBox::Yes:
+            saveDraw();
+            choice();
+            break;
+       case QMessageBox::No:
+            choice();
+            break;
+        default:
+            choice();
+            break;
+        }
+
+    });
+
     focus = QPoint(-1, -1);
     curLeftClick = QPoint(-1, -1);
     menu2->setEnabled(false);
@@ -549,8 +574,8 @@ void ChessServer::paintEvent(QPaintEvent *e)
     QPixmap bPawn(":/img/img/blackPawn.png");
     QPixmap wRook(":/img/img/whiteRook.png");
     QPixmap bRook(":/img/img/blackRook.png");
-    QPixmap wHorse(":/img/img/whiteHorse.png");
-    QPixmap bHorse(":/img/img/blackHorse.png");
+    QPixmap wHorse(":/img/img/whiteKnight.png");
+    QPixmap bHorse(":/img/img/blackKnight.png");
     QPixmap wBishop(":/img/img/whiteBishop.png");
     QPixmap bBishop(":/img/img/blackBishop.png");
     QPixmap wQueen(":/img/img/whiteQueen.png");
@@ -1707,7 +1732,7 @@ void ChessServer::fileParser(QByteArray array)
                     }
                 }
             }
-            if(strList[0]=="horse")
+            if(strList[0]=="knight")
             {
                 for(int i=0;i<num;i++)
                 {
@@ -1757,4 +1782,219 @@ void ChessServer::fileParser(QByteArray array)
 
 }
 
+void ChessServer::saveFill()
+{
+    whiteStore[1]<<"pawn";
+    whiteStore[2]<<"rook";
+    whiteStore[3]<<"knight";
+    whiteStore[4]<<"bishop";
+    whiteStore[5]<<"queen";
+    whiteStore[6]<<"king";
 
+    blackStore[1]<<"pawn";
+    blackStore[2]<<"rook";
+    blackStore[3]<<"knight";
+    blackStore[4]<<"bishop";
+    blackStore[5]<<"queen";
+    blackStore[6]<<"king";
+
+    for(int i=0;i<8;i++)
+    {
+        for(int j=0;j<8;j++)
+        {
+            QString al;
+            QString num;
+            if(matrix[i][j] != 0)
+            {
+                if(i==0)
+                {
+                    al="a";
+                }
+                if(i==1)
+                {
+                    al="b";
+                }
+                if(i==2)
+                {
+                    al="c";
+                }
+                if(i==3)
+                {
+                    al="d";
+                }
+                if(i==4)
+                {
+                    al="e";
+                }
+                if(i==5)
+                {
+                    al="f";
+                }
+                if(i==6)
+                {
+                    al="g";
+                }
+                if(i==7)
+                {
+                    al="h";
+                }
+
+                num = QString::number(8-j);
+            }
+
+            if(matrix[i][j]==1)
+            {
+                whiteStore[1]<<al+num;
+            }
+            if(matrix[i][j]==2)
+            {
+                whiteStore[2]<<al+num;
+            }
+            if(matrix[i][j]==3)
+            {
+                whiteStore[3]<<al+num;
+            }
+            if(matrix[i][j]==4)
+            {
+                whiteStore[4]<<al+num;
+            }
+            if(matrix[i][j]==5)
+            {
+                whiteStore[5]<<al+num;
+            }
+            if(matrix[i][j]==6)
+            {
+                whiteStore[6]<<al+num;
+            }
+
+            if(matrix[i][j]==-1)
+            {
+                blackStore[1]<<al+num;
+            }
+            if(matrix[i][j]==-2)
+            {
+                blackStore[2]<<al+num;
+            }
+            if(matrix[i][j]==-3)
+            {
+                blackStore[3]<<al+num;
+            }
+            if(matrix[i][j]==-4)
+            {
+                blackStore[4]<<al+num;
+            }
+            if(matrix[i][j]==-5)
+            {
+                blackStore[5]<<al+num;
+            }
+            if(matrix[i][j]==-6)
+            {
+                blackStore[6]<<al+num;
+            }
+
+        }
+    }
+
+}
+
+
+void ChessServer::saveDraw()
+{
+    timerCount.stop();
+
+    QString path = QFileDialog::getSaveFileName(this,
+                                                "[Server] Please save the draw file!", "../serverDrawSave/", "TXT(*.txt)");
+    if (path.isEmpty() == false)
+    {
+
+        QFile file;//创建文件对象
+        //关联文件名字
+        file.setFileName(path);
+
+        blackStore = new QStringList[7];
+        whiteStore = new QStringList[7];
+        saveFill();
+
+        QTextStream txtin(&file);
+
+        //打开文件，只写方式
+        bool isOK = file.open(QIODevice::WriteOnly|QIODevice::Text);
+        if (isOK == true)
+        {
+
+            QStringList pathList = path.split("/");
+            qDebug()<<"pathList[pathList.size()-1]"<<pathList[pathList.size()-1];
+
+            QByteArray block;
+            QDataStream out(&block, QIODevice::WriteOnly);
+            out.setVersion(QDataStream::Qt_4_3);
+            out << quint16(1111) << pathList[pathList.size()-1];
+            tcpServerSocket->write(block);
+
+            if(step%2==0)
+            {
+                txtin<<"white\n";
+                for(int i=1;i<7;i++)
+                {
+                    if(whiteStore[i].size()>1)
+                    {
+                        txtin<<whiteStore[i][0]+" ";
+                        txtin<<QString::number(whiteStore[i].size()-1)+" ";
+                        for(int j=1;j<whiteStore[i].size()-1;j++)
+                        {
+                            txtin<<whiteStore[i][j]+" ";
+                        }
+                        txtin<<whiteStore[i][whiteStore[i].size()-1]+"\n";
+                    }
+                }
+
+                txtin<<"black\n";
+                for(int i=1;i<7;i++)
+                {
+                    if(blackStore[i].size()>1)
+                    {
+                        txtin<<blackStore[i][0]+" ";
+                        txtin<<QString::number(blackStore[i].size()-1)+" ";
+                        for(int j=1;j<blackStore[i].size()-1;j++)
+                        {
+                            txtin<<blackStore[i][j]+" ";
+                        }
+                        txtin<<blackStore[i][blackStore[i].size()-1]+"\n";
+                    }
+                }
+
+            }
+            else {
+                txtin<<"black\n";
+                for(int i=1;i<7;i++)
+                {
+                    if(blackStore[i].size()>1)
+                    {
+                        txtin<<blackStore[i][0]+" ";
+                        txtin<<QString::number(blackStore[i].size()-1)+" ";
+                        for(int j=1;j<blackStore[i].size()-1;j++)
+                        {
+                            txtin<<blackStore[i][j]+" ";
+                        }
+                        txtin<<blackStore[i][blackStore[i].size()-1]+"\n";
+                    }
+                }
+                txtin<<"white\n";
+                for(int i=1;i<7;i++)
+                {
+                    if(whiteStore[i].size()>1)
+                    {
+                        txtin<<whiteStore[i][0]+" ";
+                        txtin<<QString::number(whiteStore[i].size()-1)+" ";
+                        for(int j=1;j<whiteStore[i].size()-1;j++)
+                        {
+                            txtin<<whiteStore[i][j]+" ";
+                        }
+                        txtin<<whiteStore[i][whiteStore[i].size()-1]+"\n";
+                    }
+                }
+            }
+        }
+        file.close();
+    }
+}

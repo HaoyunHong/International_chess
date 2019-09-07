@@ -131,6 +131,12 @@ private:
 
     bool isLose;
 
+    QStringList* blackStore;
+    QStringList* whiteStore;
+
+    void saveFill();
+    void saveDraw();
+
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);

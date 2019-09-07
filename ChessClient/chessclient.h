@@ -92,8 +92,6 @@ private:
     QMenu *menu;
     QAction *actClient;
 
-    QMenu *menu2;
-    QAction *actSave;
 
     void playAgain();
 
@@ -115,6 +113,16 @@ private:
     bool isLose;
 
     void openFile();
+
+    QStringList* blackStore;
+    QStringList* whiteStore;
+
+    void saveFill();
+
+    void saveDraw();
+
+    QString nameOut;
+
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);
