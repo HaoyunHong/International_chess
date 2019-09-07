@@ -140,6 +140,8 @@ private:
     void getPath(QPoint);
     QVector<QPoint> dangerPoints;
 
+    void judgeCamp();
+
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);

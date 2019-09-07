@@ -189,6 +189,20 @@ ChessServer::ChessServer(QWidget *parent) :
                     in >> nextBlockSize;
                     qDebug() << "nextBlockSize: " << nextBlockSize;
 
+                    if(nextBlockSize == 7878)
+                    {
+                        int ret = QMessageBox::information(this, "Draw", "Reach a draw!", QMessageBox::Ok);
+                        switch (ret)
+                        {
+                        case QMessageBox::Ok:
+                            choice();
+                            break;
+                        default:
+                            choice();
+                            break;
+                        }
+                        break;
+                    }
                     if(nextBlockSize == 8000)
                     {
                         QPoint kingT;
@@ -206,6 +220,8 @@ ChessServer::ChessServer(QWidget *parent) :
                         step++;
                         qDebug() << "Before Client turn step = " << step;
                         timerCount.start(1000);
+
+                        judgeCamp();
                         return;
                     }
                     if(nextBlockSize == 7777)
@@ -307,6 +323,7 @@ ChessServer::ChessServer(QWidget *parent) :
                         }
                 }
 
+                judgeCamp();
             });
 
         });
@@ -2556,4 +2573,169 @@ void ChessServer::getPath(QPoint p)
             dangerPoints.push_back(QPoint(x + 1, y + 1));
         }
     }
+}
+
+void ChessServer::judgeCamp()
+{
+    bool isDraw = false;
+    dangerPoints.clear();
+    QPoint myKing;
+    QVector<QPoint> myKingPath;
+
+    QVector<QPoint> threatPoints;
+    QVector<QPoint> dangers;
+
+    QVector<QPoint> otherSide;
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            if (matrix[i][j] < 0)
+            {
+                otherSide.push_back(QPoint(i, j));
+            }
+            if(matrix[i][j]==6)
+            {
+                myKing=QPoint(i,j);
+            }
+        }
+    }
+
+    int x = myKing.x();
+    int y = myKing.y();
+    if (x > 0 && matrix[x - 1][y] <= 0)
+    {
+        myKingPath.push_back(QPoint(x - 1, y));
+    }
+    if (x > 0 && y > 0 && matrix[x - 1][y - 1] <= 0)
+    {
+        myKingPath.push_back(QPoint(x - 1, y - 1));
+    }
+    if (x > 0 && y < 7 && matrix[x - 1][y + 1] <= 0)
+    {
+        myKingPath.push_back(QPoint(x - 1, y + 1));
+    }
+    if (y > 0 && matrix[x][y - 1] <= 0)
+    {
+        myKingPath.push_back(QPoint(x, y - 1));
+    }
+    if (y < 7 && matrix[x][y + 1] <= 0)
+    {
+        myKingPath.push_back(QPoint(x, y + 1));
+    }
+    if (x < 7 && y>0 && matrix[x + 1][y - 1] <= 0)
+    {
+        myKingPath.push_back(QPoint(x + 1, y - 1));
+    }
+    if (x < 7 && matrix[x + 1][y] <= 0)
+    {
+        myKingPath.push_back(QPoint(x + 1, y));
+    }
+    if (x < 7 && y < 7 && matrix[x + 1][y + 1] <= 0)
+    {
+        myKingPath.push_back(QPoint(x + 1, y + 1));
+    }
+
+    for(int i=0;i<otherSide.size();i++)
+    {
+        getPath(otherSide[i]);
+        //dangers用来储存一长串
+        dangers+=dangerPoints;
+        //如果正在被将军就不是逼和
+        if(dangerPoints.contains(myKing))
+        {
+            return;
+        }
+        for(int j=0;j<myKingPath.size();j++)
+        {
+            if(dangerPoints.contains(myKingPath[j]))
+            {
+                //threatPoints是会造成威胁的点
+                threatPoints.push_back(otherSide[i]);
+            }
+        }
+
+    dangerPoints.clear();
+    }
+
+    QVector<QPoint> mySide;
+    for (int i = 0; i < 8; i++)
+    {
+        for (int j = 0; j < 8; j++)
+        {
+            if (matrix[i][j] > 0)
+            {
+                mySide.push_back(QPoint(i, j));
+            }
+        }
+    }
+
+    QVector<QPoint> myDefendPoints;
+    for(int i=0;i<mySide.size();i++)
+    {
+        getPath(mySide[i]);
+        myDefendPoints+=dangerPoints;
+        dangerPoints.clear();
+    }
+
+    for(int i=0;i<threatPoints.size();i++)
+    {
+        //如果王的某个位置能被守护住的话，也不是逼和
+        if(myDefendPoints.contains(threatPoints[i]))
+        {
+            QVector<QPoint> remainThreat;
+            for(int j=0;j<threatPoints.size();j++)
+            {
+                if(j!=i)
+                {
+
+                    getPath(threatPoints[j]);
+                    remainThreat+=dangerPoints;
+                    dangerPoints.clear();
+                }
+            }
+            for(int k=0;k<myKingPath.size();k++)
+            {
+                if(!remainThreat.contains(myKingPath[k]))
+                {
+                    return;
+                }
+            }
+
+        }
+    }
+
+
+    int cnt=0;
+    for(int i=0;i<myKingPath.size();i++)
+    {
+        if(dangers.contains(myKingPath[i]))
+        {
+            cnt++;
+        }
+    }
+
+
+    if(cnt>0 && cnt==myKingPath.size())
+    {
+        timerCount.stop();
+        QByteArray block;
+        QDataStream out(&block, QIODevice::WriteOnly);
+        out.setVersion(QDataStream::Qt_4_3);
+        out << quint16(7878);
+        tcpServerSocket->write(block);
+
+        int ret = QMessageBox::information(this, "Draw", "Reach a draw!", QMessageBox::Ok);
+        switch (ret)
+        {
+        case QMessageBox::Ok:
+            choice();
+            break;
+        default:
+            choice();
+            break;
+        }
+
+    }
+    return;
 }

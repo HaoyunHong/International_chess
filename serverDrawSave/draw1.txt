@@ -1,0 +1,5 @@
+black
+queen 1 b4
+king 1 f6
+white
+king 1 a1
