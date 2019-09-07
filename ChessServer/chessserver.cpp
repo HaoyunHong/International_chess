@@ -137,28 +137,32 @@ ChessServer::ChessServer(QWidget *parent) :
                 isLoad = true;
             });
 
-            connect(ui->giveUpButton,&QPushButton::clicked,
-                    [=]()
+            if(!isLose)
             {
-                ui->lcdNumber->display(0);
-                timerCount.stop();
-                QByteArray block;
-                QDataStream out(&block, QIODevice::WriteOnly);
-                out.setVersion(QDataStream::Qt_4_3);
-                //先写一个0来给将要传出去的信息的大小数据占个位子
-                out << quint16(7777);
-                tcpServerSocket->write(block);
-
-                int ret = QMessageBox::information(this, "Lose", "[You Give Up] You Lose!", QMessageBox::Ok);
-                switch (ret)
+                connect(ui->giveUpButton,&QPushButton::clicked,
+                        [=]()
                 {
-                case QMessageBox::Ok:
-                    choice();
-                    break;
-                default:
-                    break;
-                }
-            });
+                    isLose  = true;
+                    ui->lcdNumber->display(0);
+                    timerCount.stop();
+                    QByteArray block;
+                    QDataStream out(&block, QIODevice::WriteOnly);
+                    out.setVersion(QDataStream::Qt_4_3);
+                    //先写一个0来给将要传出去的信息的大小数据占个位子
+                    out << quint16(7777);
+                    tcpServerSocket->write(block);
+
+                    int ret = QMessageBox::information(this, "Lose", "[You Give Up] You Lose!", QMessageBox::Ok);
+                    switch (ret)
+                    {
+                    case QMessageBox::Ok:
+                        choice();
+                        break;
+                    default:
+                        break;
+                    }
+                });
+            }
 
             connect(tcpServerSocket, &QTcpSocket::readyRead,
                 [=]()
@@ -182,6 +186,7 @@ ChessServer::ChessServer(QWidget *parent) :
 
                     if(nextBlockSize == 7777)
                     {
+                        timerCount.stop();
                         int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win!", QMessageBox::Ok);
                         switch (ret)
                         {
@@ -423,6 +428,8 @@ ChessServer::ChessServer(QWidget *parent) :
     }
 
     actSave->setEnabled(false);
+
+    isLose = false;
 }
 
 ChessServer::~ChessServer()
@@ -1433,6 +1440,7 @@ void ChessServer::choice()
 
 void ChessServer::playAgain()
 {
+    isLose = false;
     actSave->setEnabled(false);
     timerCount.stop();
     drawLineIndex=0;
@@ -1477,6 +1485,7 @@ void ChessServer::playAgain()
 
 void ChessServer::origin()
 {
+    isLose = false;
     actSave->setEnabled(false);
     ui->lcdNumber->display(0);
     drawLineIndex = 0;

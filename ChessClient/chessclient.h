@@ -112,6 +112,8 @@ private:
 
     pawnProDialog *pdlg;
 
+    bool isLose;
+
     void openFile();
 protected:
     void paintEvent(QPaintEvent *e);

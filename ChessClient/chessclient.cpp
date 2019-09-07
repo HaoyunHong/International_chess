@@ -78,24 +78,24 @@ ChessClient::ChessClient(QWidget *parent) :
                     forever{
                         int oX,oY,tX,tY;
 
-                        in>>nextBlockSize;
-                        qDebug()<<"nextBlockSize: "<<nextBlockSize;
+                        in >> nextBlockSize;
+                        qDebug() << "nextBlockSize: " << nextBlockSize;
 
-                        if(nextBlockSize == 12345)
+                        if (nextBlockSize == 12345)
                         {
                             ui->yourTurnlabel->hide();
                             QString path;
-                            in>>path;
+                            in >> path;
 
-                            if(!isLoad)
+                            if (!isLoad)
                             {
-                                QString filePath = "Please load the draw file at " + path +" !";
+                                QString filePath = "Please load the draw file at " + path + " !";
                                 int ret = QMessageBox::information(this, "Load Draw File",filePath , QMessageBox::Ok);
 
                                 switch (ret)
                                 {
                                     case QMessageBox::Ok:
-                                    qDebug()<<"open file";
+                                    qDebug() << "open file";
                                     openFile();
                                     isLoad = true;
                                         break;
@@ -106,8 +106,9 @@ ChessClient::ChessClient(QWidget *parent) :
 
                             break;
                         }
-                        if(nextBlockSize == 7777)
+                        if (nextBlockSize == 7777)
                         {
+                            timerCount.stop();
                             int ret = QMessageBox::information(this, "Win", "[Opposite Give Up] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
                             switch (ret)
                             {
@@ -119,12 +120,12 @@ ChessClient::ChessClient(QWidget *parent) :
                             }
                             break;
                         }
-                        if(nextBlockSize == 8888)
+                        if (nextBlockSize == 8888)
                         {
                             timerCount.stop();
                             playAgain();
                         }
-                        if(nextBlockSize == 6666)
+                        if (nextBlockSize == 6666)
                         {
                             timerCount.stop();
                             int ret = QMessageBox::information(this, "Win", "[Opposite Time Out] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
@@ -138,10 +139,10 @@ ChessClient::ChessClient(QWidget *parent) :
                             }
                             break;
                         }
-                        if(nextBlockSize == 4)
+                        if (nextBlockSize == 4)
                         {
-                            in>>oX;
-                            qDebug()<<"Initial!";
+                            in >> oX;
+                            qDebug() << "Initial!";
                             initial();
                             update();
                             break;
@@ -174,27 +175,27 @@ ChessClient::ChessClient(QWidget *parent) :
                             matrix[tX][tY] = matrix[oX][oY];
                             matrix[oX][oY] = 0;
 
-                            quint16 pro=0;
-                            in>>pro;
-                            qDebug()<<"in client pro: "<<pro;
-                            if(pro>0&&pro<6)
+                            quint16 pro = 0;
+                            in >> pro;
+                            qDebug() << "in client pro: " << pro;
+                            if (pro > 0 && pro < 6)
                             {
                                 matrix[tX][tY] = pro;
                             }
 
 
 
-                            qDebug()<<"Client receive point:";
-                            qDebug()<<opposeOrigin;
-                            qDebug()<<opposeTo;
+                            qDebug() << "Client receive point:";
+                            qDebug() << opposeOrigin;
+                            qDebug() << opposeTo;
 
                             step++;
                             actSave->setEnabled(true);
-                            qDebug()<<"Before Client turn step = "<<step;
+                            qDebug() << "Before Client turn step = " << step;
                             update();
                             timerCount.start(1000);
 
-                            if(pro == 505)
+                            if (pro == 505)
                             {
                                 timerCount.stop();
                                 int ret = QMessageBox::information(this, "Lose", "[Be Checkmated] You Lose!Please wait for Server's reaction.", QMessageBox::Ok);
@@ -212,31 +213,34 @@ ChessClient::ChessClient(QWidget *parent) :
 
                 });
 
-
-
-                connect(ui->giveUpButton,&QPushButton::clicked,
-                        [=]()
+                if (!isLose)
                 {
-                    ui->lcdNumber->display(0);
-                    timerCount.stop();
-                    QByteArray block;
-                    QDataStream out(&block, QIODevice::WriteOnly);
-                    out.setVersion(QDataStream::Qt_4_3);
-                    //先写一个0来给将要传出去的信息的大小数据占个位子
-                    out << quint16(7777);
-                    tcpClientSocket->write(block);
-
-                    int ret = QMessageBox::information(this, "Lose", "[You Give Up] You Lose! Please wait for Server's reaction.", QMessageBox::Ok);
-                    switch (ret)
+                    connect(ui->giveUpButton, &QPushButton::clicked,
+                        [=]()
                     {
-                    case QMessageBox::Ok:
-                        this->setWindowTitle("Please wait for Server's reaction");
-                        break;
-                    default:
-                        break;
-                    }
+                        isLose = true;
+                        ui->lcdNumber->display(0);
+                        timerCount.stop();
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(7777);
+                        tcpClientSocket->write(block);
 
-                });
+                        int ret = QMessageBox::information(this, "Lose", "[You Give Up] You Lose! Please wait for Server's reaction.", QMessageBox::Ok);
+                        switch (ret)
+                        {
+                        case QMessageBox::Ok:
+                            this->setWindowTitle("Please wait for Server's reaction");
+                            break;
+                        default:
+                            break;
+                        }
+
+                    });
+
+                }
 
             });
 
@@ -244,6 +248,8 @@ ChessClient::ChessClient(QWidget *parent) :
         connect(tcpClientSocket, &QTcpSocket::disconnected,
             [=]()
         {
+            isLose = false;
+            ui->lcdNumber->display(0);
             this->setWindowTitle("Server canceled the connection");
             qDebug() << "客户端已断开";
 
@@ -254,11 +260,12 @@ ChessClient::ChessClient(QWidget *parent) :
             }
             menu->setEnabled(true);
             menu2->setEnabled(false);
+            actSave->setEnabled(true);
+
             tcpClientSocket->close();
             tcpClientSocket = nullptr;
-            focus = QPoint(-1,-1);
-            curLeftClick = QPoint(-1,-1);
-            menu2->setEnabled(false);
+            focus = QPoint(-1, -1);
+            curLeftClick = QPoint(-1, -1);
             isSelected = false;
             hasDestination = false;
 
@@ -278,11 +285,12 @@ ChessClient::ChessClient(QWidget *parent) :
             menu2->setEnabled(false);
 
             timerCount.stop();
-            drawLineIndex =0;
+            drawLineIndex = 0;
             isStart = false;
             isLoad = false;
 
-
+            countTime = 60;
+            startTime = 3;
         });
 
         cCDlg->exec();
@@ -290,12 +298,12 @@ ChessClient::ChessClient(QWidget *parent) :
     });
 
     startTime = 3;
-    connect(&timeStart,&QTimer::timeout,
-            [=]()
+    connect(&timeStart, &QTimer::timeout,
+        [=]()
     {
         ui->yourTurnlabel->hide();
         ui->lcdNumber->display(startTime);
-        if(startTime==0)
+        if (startTime == 0)
         {
             ui->yourTurnlabel->show();
             timerCount.start(1000);
@@ -305,12 +313,12 @@ ChessClient::ChessClient(QWidget *parent) :
     });
 
     countTime = 60;
-    connect(&timerCount,&QTimer::timeout,
-            [=]()
+    connect(&timerCount, &QTimer::timeout,
+        [=]()
     {
         isStart = true;
         ui->lcdNumber->display(countTime);
-        if(countTime==0)
+        if (countTime == 0)
         {
             timerCount.stop();
             QByteArray block;
@@ -337,8 +345,8 @@ ChessClient::ChessClient(QWidget *parent) :
     QIcon mainIcon(":/img/img/blackQueen.png");
     this->setWindowIcon(mainIcon);
 
-    focus = QPoint(-1,-1);
-    curLeftClick = QPoint(-1,-1);
+    focus = QPoint(-1, -1);
+    curLeftClick = QPoint(-1, -1);
     menu2->setEnabled(false);
     isSelected = false;
     hasDestination = false;
@@ -349,7 +357,7 @@ ChessClient::ChessClient(QWidget *parent) :
 
     actSave->setEnabled(false);
 
-
+    isLose = false;
 }
 
 ChessClient::~ChessClient()
@@ -411,60 +419,60 @@ void ChessClient::paintEvent(QPaintEvent *e)
         }
     }
 
-        if(step%2==1)
+    if (step % 2 == 1)
+    {
+        if (isStart)
         {
-            if(isStart)
-            {
-                ui->yourTurnlabel->show();
-            }
-
-            if(curLeftClick!=QPoint(-1,-1))
-            {
-                //qDebug()<<"curLeftClick = "<<curLeftClick;
-        //        for(int i=0;i<8;i++)
-        //        {
-        //            for(int j=0;j<8;j++)
-        //            {
-        //                qDebug()<<"matrix["<<i<<"]["<<j<<"]: "<<matrix[i][j];
-        //            }
-        //        }
-                brush.setColor(QColor(255,255,255,180));
-                p.setPen(Qt::NoPen);
-                p.setBrush(brush);
-
-
-        //        for(int i=0;i<curClickPath.size();i++)
-        //        {
-        //            qDebug()<<"curClickPath["<<i<<"]: "<<curClickPath[i];
-        //        }
-               // qDebug()<<"Here!";
-
-                for(int i=0;i<curClickPath.size();i++)
-                {
-                    int x = curClickPath[i].x();
-                    int y = curClickPath[i].y();
-                    p.drawRect(x*unit,y*unit,unit,unit);
-                }
-                p.drawRect(curLeftClick.x()*unit,curLeftClick.y()*unit,unit,unit);
-                curClickPath.clear();
-            }
-
-            if(focus != QPoint(-1,-1))
-            {
-                pen.setColor(QColor(255,0,0,200));
-                pen.setWidth(3);
-                p.setPen(pen);
-                p.setBrush(Qt::NoBrush);
-
-                for(int i=0;i<focusPath.size();i++)
-                {
-                    int x = focusPath[i].x();
-                    int y = focusPath[i].y();
-                    p.drawRect(x*unit,y*unit,unit,unit);
-                }
-                p.drawRect(focus.x()*unit,focus.y()*unit,unit,unit);
-            }
+            ui->yourTurnlabel->show();
         }
+
+        if (curLeftClick != QPoint(-1, -1))
+        {
+            //qDebug()<<"curLeftClick = "<<curLeftClick;
+    //        for(int i=0;i<8;i++)
+    //        {
+    //            for(int j=0;j<8;j++)
+    //            {
+    //                qDebug()<<"matrix["<<i<<"]["<<j<<"]: "<<matrix[i][j];
+    //            }
+    //        }
+            brush.setColor(QColor(255, 255, 255, 180));
+            p.setPen(Qt::NoPen);
+            p.setBrush(brush);
+
+
+            //        for(int i=0;i<curClickPath.size();i++)
+            //        {
+            //            qDebug()<<"curClickPath["<<i<<"]: "<<curClickPath[i];
+            //        }
+                   // qDebug()<<"Here!";
+
+            for (int i = 0; i < curClickPath.size(); i++)
+            {
+                int x = curClickPath[i].x();
+                int y = curClickPath[i].y();
+                p.drawRect(x*unit, y*unit, unit, unit);
+            }
+            p.drawRect(curLeftClick.x()*unit, curLeftClick.y()*unit, unit, unit);
+            curClickPath.clear();
+        }
+
+        if (focus != QPoint(-1, -1))
+        {
+            pen.setColor(QColor(255, 0, 0, 200));
+            pen.setWidth(3);
+            p.setPen(pen);
+            p.setBrush(Qt::NoBrush);
+
+            for (int i = 0; i < focusPath.size(); i++)
+            {
+                int x = focusPath[i].x();
+                int y = focusPath[i].y();
+                p.drawRect(x*unit, y*unit, unit, unit);
+            }
+            p.drawRect(focus.x()*unit, focus.y()*unit, unit, unit);
+        }
+    }
 
 
 
@@ -556,37 +564,37 @@ void ChessClient::initial()
 
 void ChessClient::mousePressEvent(QMouseEvent *e)
 {
-    if(step%2 != 1 || !isStart)
+    if (step % 2 != 1 || !isStart)
     {
         return;
     }
 
-    QPoint curPoint=e->pos();
+    QPoint curPoint = e->pos();
     QPoint centerIJ;
 
     int unit = 50;
 
-    QPoint o(50,80);
+    QPoint o(50, 80);
 
-    if(e->button() == Qt::LeftButton)
+    if (e->button() == Qt::LeftButton)
     {
-        if(isSelected)
+        if (isSelected)
         {
-            curLeftClick=QPoint(-1,-1);
+            curLeftClick = QPoint(-1, -1);
             return;
         }
 
-        for(int i=0;i<8;i++)
+        for (int i = 0; i < 8; i++)
         {
-            for(int j=0;j<8;j++)
+            for (int j = 0; j < 8; j++)
             {
-                centerIJ.setX(i*unit+unit/2);
-                centerIJ.setY(j*unit+unit/2);
-                QRect rec = QRect(o.x()+centerIJ.x()-unit/2,o.y()+centerIJ.y()-unit/2,unit,unit);
-                if(rec.contains(curPoint) && matrix[i][j]<0)
+                centerIJ.setX(i*unit + unit / 2);
+                centerIJ.setY(j*unit + unit / 2);
+                QRect rec = QRect(o.x() + centerIJ.x() - unit / 2, o.y() + centerIJ.y() - unit / 2, unit, unit);
+                if (rec.contains(curPoint) && matrix[i][j] < 0)
                 {
-                    curLeftClick = QPoint(i,j);
-                    qDebug()<<"curLeftClick: "<<curLeftClick;
+                    curLeftClick = QPoint(i, j);
+                    qDebug() << "curLeftClick: " << curLeftClick;
                     //然后这个时候在点击的时候就会有路径提示
                     setMovePoints(curLeftClick);
 
@@ -597,25 +605,25 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
         }
     }
 
-    if(e->button() == Qt::RightButton)
+    if (e->button() == Qt::RightButton)
     {
         actSave->setEnabled(true);
         //qDebug()<<"Here!";
         //qDebug()<<"focusPath.size()"<<focusPath.size();
-        for(int i=0;i<8;i++)
+        for (int i = 0; i < 8; i++)
         {
-            for(int j=0;j<8;j++)
+            for (int j = 0; j < 8; j++)
             {
-                centerIJ.setX(i*unit+unit/2);
-                centerIJ.setY(j*unit+unit/2);
-                QRect rec = QRect(o.x()+centerIJ.x()-unit/2,o.y()+centerIJ.y()-unit/2,unit,unit);
-                if(rec.contains(curPoint) && focusPath.contains(QPoint(i,j)))
+                centerIJ.setX(i*unit + unit / 2);
+                centerIJ.setY(j*unit + unit / 2);
+                QRect rec = QRect(o.x() + centerIJ.x() - unit / 2, o.y() + centerIJ.y() - unit / 2, unit, unit);
+                if (rec.contains(curPoint) && focusPath.contains(QPoint(i, j)))
                 {
                     actSave->setEnabled(true);
                     hasDestination = true;
 
                     bool isEating = false;
-                    if(matrix[i][j]==6)
+                    if (matrix[i][j] == 6)
                     {
                         isEating = true;
                     }
@@ -626,22 +634,22 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
                     update();
 
 
-                    if(isEating)
+                    if (isEating)
                     {
                         QByteArray block;
                         QDataStream out(&block, QIODevice::WriteOnly);
                         out.setVersion(QDataStream::Qt_4_3);
                         //先写一个0来给将要传出去的信息的大小数据占个位子
-                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(505);
+                        out << quint16(0) << focus.x() << focus.y() << i << j << quint16(505);
                         //找到那个0，再覆盖掉
                         out.device()->seek(0);
                         out << quint16(block.size() - sizeof(quint16));
                         tcpClientSocket->write(block);
 
-                        qDebug()<<"Server send:";
-                        qDebug()<<quint16(block.size() - sizeof(quint16));
-                        qDebug()<<focus;
-                        qDebug()<<i<<","<<j;
+                        qDebug() << "Server send:";
+                        qDebug() << quint16(block.size() - sizeof(quint16));
+                        qDebug() << focus;
+                        qDebug() << i << "," << j;
 
                         int ret = QMessageBox::information(this, "Win", "[Checkmate] You Win! Please wait for Server's reaction.", QMessageBox::Ok);
                         switch (ret)
@@ -658,33 +666,33 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
                     }
 
                     //如果此时满足兵升变的条件
-                    qDebug()<<"j = "<<j;
-                    if(j==7 && matrix[i][j]==-1)
+                    qDebug() << "j = " << j;
+                    if (j == 7 && matrix[i][j] == -1)
                     {
-                        qDebug()<<"j = "<<j;
+                        qDebug() << "j = " << j;
                         pdlg = new pawnProDialog(this);
 
-                        connect(pdlg,&pawnProDialog::toQueen,
-                                [=]()
+                        connect(pdlg, &pawnProDialog::toQueen,
+                            [=]()
                         {
-                            matrix[i][j]=5;
-                            qDebug()<<"toQueen";
+                            matrix[i][j] = 5;
+                            qDebug() << "toQueen";
 
                         });
-                        connect(pdlg,&pawnProDialog::toBishop,
-                                [=]()
+                        connect(pdlg, &pawnProDialog::toBishop,
+                            [=]()
                         {
-                            matrix[i][j]=4;
+                            matrix[i][j] = 4;
                         });
-                        connect(pdlg,&pawnProDialog::toHorse,
-                                [=]()
+                        connect(pdlg, &pawnProDialog::toHorse,
+                            [=]()
                         {
-                            matrix[i][j]=3;
+                            matrix[i][j] = 3;
                         });
-                        connect(pdlg,&pawnProDialog::toRook,
-                                [=]()
+                        connect(pdlg, &pawnProDialog::toRook,
+                            [=]()
                         {
-                            matrix[i][j]=2;
+                            matrix[i][j] = 2;
                         });
 
                         pdlg->exec();
@@ -695,32 +703,32 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
                         QDataStream out(&block, QIODevice::WriteOnly);
                         out.setVersion(QDataStream::Qt_4_3);
                         //先写一个0来给将要传出去的信息的大小数据占个位子
-                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(matrix[i][j]);
+                        out << quint16(0) << focus.x() << focus.y() << i << j << quint16(matrix[i][j]);
                         //找到那个0，再覆盖掉
                         out.device()->seek(0);
                         out << quint16(block.size() - sizeof(quint16));
                         tcpClientSocket->write(block);
 
-                        qDebug()<<"Client send:";
-                        qDebug()<<quint16(block.size() - sizeof(quint16));
-                        qDebug()<<focus;
-                        qDebug()<<i<<","<<j;
+                        qDebug() << "Client send:";
+                        qDebug() << quint16(block.size() - sizeof(quint16));
+                        qDebug() << focus;
+                        qDebug() << i << "," << j;
                     }
                     else {
                         QByteArray block;
                         QDataStream out(&block, QIODevice::WriteOnly);
                         out.setVersion(QDataStream::Qt_4_3);
                         //先写一个0来给将要传出去的信息的大小数据占个位子
-                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(0);
+                        out << quint16(0) << focus.x() << focus.y() << i << j << quint16(0);
                         //找到那个0，再覆盖掉
                         out.device()->seek(0);
                         out << quint16(block.size() - sizeof(quint16));
                         tcpClientSocket->write(block);
 
-                        qDebug()<<"Client send:";
-                        qDebug()<<quint16(block.size() - sizeof(quint16));
-                        qDebug()<<focus;
-                        qDebug()<<i<<","<<j;
+                        qDebug() << "Client send:";
+                        qDebug() << quint16(block.size() - sizeof(quint16));
+                        qDebug() << focus;
+                        qDebug() << i << "," << j;
                     }
 
 
@@ -731,9 +739,9 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
                     ui->lcdNumber->display(60);
 
                     step++;
-                    qDebug()<<"This Client turn step = "<<step;
+                    qDebug() << "This Client turn step = " << step;
                     focusPath.clear();
-                    focus = QPoint(-1,-1);
+                    focus = QPoint(-1, -1);
                     isSelected = false;
                     ui->yourTurnlabel->hide();
                 }
@@ -744,45 +752,45 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
 
 void ChessClient::mouseDoubleClickEvent(QMouseEvent *e)
 {
-    if(step%2 != 1 || !isStart)
+    if (step % 2 != 1 || !isStart)
     {
         return;
     }
-    if(isSelected) return;
-    QPoint curPoint=e->pos();
+    if (isSelected) return;
+    QPoint curPoint = e->pos();
     QPoint centerIJ;
 
     int unit = 50;
 
-    QPoint o(50,80);
-    if(e->button() == Qt::LeftButton)
+    QPoint o(50, 80);
+    if (e->button() == Qt::LeftButton)
     {
-        for(int i=0;i<8;i++)
+        for (int i = 0; i < 8; i++)
         {
-            for(int j=0;j<8;j++)
+            for (int j = 0; j < 8; j++)
             {
-                centerIJ.setX(i*unit+unit/2);
-                centerIJ.setY(j*unit+unit/2);
-                QRect rec = QRect(o.x()+centerIJ.x()-unit/2,o.y()+centerIJ.y()-unit/2,unit,unit);
+                centerIJ.setX(i*unit + unit / 2);
+                centerIJ.setY(j*unit + unit / 2);
+                QRect rec = QRect(o.x() + centerIJ.x() - unit / 2, o.y() + centerIJ.y() - unit / 2, unit, unit);
 
                 //这个括号里还要再加些条件
-                if(rec.contains(curPoint) && matrix[i][j]!=0)
+                if (rec.contains(curPoint) && matrix[i][j] != 0)
                 {
                     isSelected = true;
 
-                    focus = QPoint(i,j);
+                    focus = QPoint(i, j);
                     setMovePoints(focus);
-                    if(focusPath.isEmpty())
+                    if (focusPath.isEmpty())
                     {
                         isSelected = false;
-                        focus = QPoint(-1,-1);
+                        focus = QPoint(-1, -1);
                         focusPath.clear();
-                        qDebug()<<"can't move!";
+                        qDebug() << "can't move!";
                     }
                     else {
                         //就是表示这个追踪我不用了
-                        curLeftClick = QPoint(-1,-1);
-                        qDebug()<<"In Server: focus = "<<focus;
+                        curLeftClick = QPoint(-1, -1);
+                        qDebug() << "In Server: focus = " << focus;
                     }
 
                     update();
@@ -825,7 +833,7 @@ QPixmap ChessClient::getPic(QPoint p)
         pic = wRook;
         break;
     case -2:
-        pic =bRook;
+        pic = bRook;
         break;
     case 3:
         pic = wHorse;
@@ -864,47 +872,47 @@ void ChessClient::setMovePoints(QPoint curClick)
     int y = curClick.y();
 
     //这里要注意的是兵升变的时候不能不变
-    if(matrix[x][y] == -1)
+    if (matrix[x][y] == -1)
     {
-        qDebug()<<"bPawn!";
-        QPoint p(x,y+1);
-        if(matrix[x][y+1]==0)
+        qDebug() << "bPawn!";
+        QPoint p(x, y + 1);
+        if (matrix[x][y + 1] == 0)
         {
             curClickPath.push_back(p);
-            if(y==1)
+            if (y == 1)
             {
-                curClickPath.push_back(QPoint(x,3));
+                curClickPath.push_back(QPoint(x, 3));
             }
         }
-        if(x>0 && y<7 && matrix[x-1][y+1]>0)
+        if (x > 0 && y < 7 && matrix[x - 1][y + 1]>0)
         {
-            curClickPath.push_back(QPoint(x-1,y+1));
+            curClickPath.push_back(QPoint(x - 1, y + 1));
         }
-        if(x<7 && y<7 && matrix[x+1][y+1]>0)
+        if (x < 7 && y < 7 && matrix[x + 1][y + 1]>0)
         {
-            curClickPath.push_back(QPoint(x+1,y+1));
+            curClickPath.push_back(QPoint(x + 1, y + 1));
         }
 
-//        for(int i=0;i<curClickPath.size();i++)
-//        {
-//            if(matrix[curClickPath[i].x()][curClickPath[i].y()]!=0)
-//            {
-//                curClickPath.remove(i);
-//            }
-//        }
+        //        for(int i=0;i<curClickPath.size();i++)
+        //        {
+        //            if(matrix[curClickPath[i].x()][curClickPath[i].y()]!=0)
+        //            {
+        //                curClickPath.remove(i);
+        //            }
+        //        }
     }
 
     if (matrix[x][y] == -2)
     {
         qDebug() << "wRook!";
 
-//        for(int i=0;i<8;i++)
-//        {
-//            for(int j=0;j<8;j++)
-//            {
-//                qDebug() << "matrix["<<i<<"]["<<j<<"]: "<<matrix[i][j];
-//            }
-//        }
+        //        for(int i=0;i<8;i++)
+        //        {
+        //            for(int j=0;j<8;j++)
+        //            {
+        //                qDebug() << "matrix["<<i<<"]["<<j<<"]: "<<matrix[i][j];
+        //            }
+        //        }
         if (x < 7)
         {
             for (int i = x + 1; i < 8; i++)
@@ -995,125 +1003,125 @@ void ChessClient::setMovePoints(QPoint curClick)
 
     }
 
-    if(matrix[x][y] == -3)
+    if (matrix[x][y] == -3)
     {
-        qDebug()<<"bHorse!";
-        for(int i=0;i<8;i++)
+        qDebug() << "bHorse!";
+        for (int i = 0; i < 8; i++)
         {
-            for(int j=0;j<8;j++)
+            for (int j = 0; j < 8; j++)
             {
-                if((i-x)*(i-x)+(j-y)*(j-y)==5 && matrix[i][j]>=0)
+                if ((i - x)*(i - x) + (j - y)*(j - y) == 5 && matrix[i][j] >= 0)
                 {
-                    curClickPath.push_back(QPoint(i,j));
+                    curClickPath.push_back(QPoint(i, j));
                 }
             }
         }
 
-//        for(int i=0;i<curClickPath.size();i++)
-//        {
-//            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
-//            {
-//                curClickPath.remove(i);
-//            }
-//        }
+        //        for(int i=0;i<curClickPath.size();i++)
+        //        {
+        //            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
+        //            {
+        //                curClickPath.remove(i);
+        //            }
+        //        }
     }
 
-    if(matrix[x][y] == -4)
+    if (matrix[x][y] == -4)
     {
-        qDebug()<<"bBishop!";
+        qDebug() << "bBishop!";
         int _x = x;
         int _y = y;
-        while(_x>0 && _y>0)
+        while (_x > 0 && _y > 0)
         {
             _x--;
             _y--;
-            if(matrix[_x][_y]==0)
+            if (matrix[_x][_y] == 0)
             {
-                curClickPath.push_back(QPoint(_x,_y));
+                curClickPath.push_back(QPoint(_x, _y));
             }
-            else if(matrix[_x][_y]<0)
+            else if (matrix[_x][_y] < 0)
             {
                 break;
             }
-            else if(matrix[_x][_y]>0)
+            else if (matrix[_x][_y] > 0)
             {
-                curClickPath.push_back(QPoint(_x,_y));
+                curClickPath.push_back(QPoint(_x, _y));
                 break;
             }
         }
-        int x_=x;
+        int x_ = x;
         int y_ = y;
-        while(x_<7 && y_<7)
+        while (x_ < 7 && y_ < 7)
         {
             x_++;
             y_++;
-            if(matrix[x_][y_]==0)
+            if (matrix[x_][y_] == 0)
             {
-                curClickPath.push_back(QPoint(x_,y_));
+                curClickPath.push_back(QPoint(x_, y_));
             }
-            else if(matrix[x_][y_]<0)
+            else if (matrix[x_][y_] < 0)
             {
                 break;
             }
-            else if(matrix[x_][y_]>0)
+            else if (matrix[x_][y_] > 0)
             {
-                curClickPath.push_back(QPoint(x_,y_));
+                curClickPath.push_back(QPoint(x_, y_));
                 break;
             }
         }
-        int __x=x;
+        int __x = x;
         int __y = y;
-        while(__x>0 && __y<7)
+        while (__x > 0 && __y < 7)
         {
             __x--;
             __y++;
-            if(matrix[__x][__y]==0)
+            if (matrix[__x][__y] == 0)
             {
-                curClickPath.push_back(QPoint(__x,__y));
+                curClickPath.push_back(QPoint(__x, __y));
             }
-            else if(matrix[__x][__y]<0)
+            else if (matrix[__x][__y] < 0)
             {
                 break;
             }
-            else if(matrix[__x][__y]>0)
+            else if (matrix[__x][__y] > 0)
             {
-                curClickPath.push_back(QPoint(__x,__y));
+                curClickPath.push_back(QPoint(__x, __y));
                 break;
             }
         }
-        int x__=x;
+        int x__ = x;
         int y__ = y;
-        while(x__<7 && y__>0)
+        while (x__ < 7 && y__>0)
         {
             x__++;
             y__--;
-            if(matrix[x__][y__]==0)
+            if (matrix[x__][y__] == 0)
             {
-                curClickPath.push_back(QPoint(x__,y__));
+                curClickPath.push_back(QPoint(x__, y__));
             }
-            else if(matrix[x__][y__]<0)
+            else if (matrix[x__][y__] < 0)
             {
                 break;
             }
-            else if(matrix[x__][y__]>0)
+            else if (matrix[x__][y__] > 0)
             {
-                curClickPath.push_back(QPoint(x__,y__));
+                curClickPath.push_back(QPoint(x__, y__));
                 break;
             }
         }
 
-//        for(int i=0;i<curClickPath.size();i++)
-//        {
-//            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
-//            {
-//                curClickPath.remove(i);
-//            }
-//        }
+        //        for(int i=0;i<curClickPath.size();i++)
+        //        {
+        //            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
+        //            {
+        //                curClickPath.remove(i);
+        //            }
+        //        }
     }
 
-    if(matrix[x][y] == -5)
+    if (matrix[x][y] == -5)
     {
-        qDebug()<<"bQueen!";
+        qDebug() << "bQueen!";
         if (x < 7)
         {
             for (int i = x + 1; i < 8; i++)
@@ -1197,137 +1205,137 @@ void ChessClient::setMovePoints(QPoint curClick)
 
         int _x = x;
         int _y = y;
-        while(_x>0 && _y>0)
+        while (_x > 0 && _y > 0)
         {
             _x--;
             _y--;
-            if(matrix[_x][_y]==0)
+            if (matrix[_x][_y] == 0)
             {
-                curClickPath.push_back(QPoint(_x,_y));
+                curClickPath.push_back(QPoint(_x, _y));
             }
-            else if(matrix[_x][_y]<0)
+            else if (matrix[_x][_y] < 0)
             {
                 break;
             }
-            else if(matrix[_x][_y]>0)
+            else if (matrix[_x][_y] > 0)
             {
-                curClickPath.push_back(QPoint(_x,_y));
+                curClickPath.push_back(QPoint(_x, _y));
                 break;
             }
         }
-        int x_=x;
+        int x_ = x;
         int y_ = y;
-        while(x_<7 && y_<7)
+        while (x_ < 7 && y_ < 7)
         {
             x_++;
             y_++;
-            if(matrix[x_][y_]==0)
+            if (matrix[x_][y_] == 0)
             {
-                curClickPath.push_back(QPoint(x_,y_));
+                curClickPath.push_back(QPoint(x_, y_));
             }
-            else if(matrix[x_][y_]<0)
+            else if (matrix[x_][y_] < 0)
             {
                 break;
             }
-            else if(matrix[x_][y_]>0)
+            else if (matrix[x_][y_] > 0)
             {
-                curClickPath.push_back(QPoint(x_,y_));
+                curClickPath.push_back(QPoint(x_, y_));
                 break;
             }
         }
-        int __x=x;
+        int __x = x;
         int __y = y;
-        while(__x>0 && __y<7)
+        while (__x > 0 && __y < 7)
         {
             __x--;
             __y++;
-            if(matrix[__x][__y]==0)
+            if (matrix[__x][__y] == 0)
             {
-                curClickPath.push_back(QPoint(__x,__y));
+                curClickPath.push_back(QPoint(__x, __y));
             }
-            else if(matrix[__x][__y]<0)
+            else if (matrix[__x][__y] < 0)
             {
                 break;
             }
-            else if(matrix[__x][__y]>0)
+            else if (matrix[__x][__y] > 0)
             {
-                curClickPath.push_back(QPoint(__x,__y));
+                curClickPath.push_back(QPoint(__x, __y));
                 break;
             }
         }
-        int x__=x;
+        int x__ = x;
         int y__ = y;
-        while(x__<7 && y__>0)
+        while (x__ < 7 && y__>0)
         {
             x__++;
             y__--;
-            if(matrix[x__][y__]==0)
+            if (matrix[x__][y__] == 0)
             {
-                curClickPath.push_back(QPoint(x__,y__));
+                curClickPath.push_back(QPoint(x__, y__));
             }
-            else if(matrix[x__][y__]<0)
+            else if (matrix[x__][y__] < 0)
             {
                 break;
             }
-            else if(matrix[x__][y__]>0)
+            else if (matrix[x__][y__] > 0)
             {
-                curClickPath.push_back(QPoint(x__,y__));
+                curClickPath.push_back(QPoint(x__, y__));
                 break;
             }
         }
 
-//        for(int i=0;i<curClickPath.size();i++)
-//        {
-//            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
-//            {
-//                curClickPath.remove(i);
-//            }
-//        }
+        //        for(int i=0;i<curClickPath.size();i++)
+        //        {
+        //            if(matrix[curClickPath[i].x()][curClickPath[i].y()]>0)
+        //            {
+        //                curClickPath.remove(i);
+        //            }
+        //        }
     }
 
-    if(matrix[x][y] == -6)
+    if (matrix[x][y] == -6)
     {
-        qDebug()<<"bKing!";
-        if(x>0 && matrix[x-1][y]>=0)
+        qDebug() << "bKing!";
+        if (x > 0 && matrix[x - 1][y] >= 0)
         {
-            curClickPath.push_back(QPoint(x-1,y));
+            curClickPath.push_back(QPoint(x - 1, y));
         }
-        if(x>0 && y>0 && matrix[x-1][y-1]>=0)
+        if (x > 0 && y > 0 && matrix[x - 1][y - 1] >= 0)
         {
-            curClickPath.push_back(QPoint(x-1,y-1));
+            curClickPath.push_back(QPoint(x - 1, y - 1));
         }
-        if(x>0 && y<7 && matrix[x-1][y+1]>=0)
+        if (x > 0 && y < 7 && matrix[x - 1][y + 1] >= 0)
         {
-            curClickPath.push_back(QPoint(x-1,y+1));
+            curClickPath.push_back(QPoint(x - 1, y + 1));
         }
-        if(y>0 && matrix[x][y-1]>=0)
+        if (y > 0 && matrix[x][y - 1] >= 0)
         {
-            curClickPath.push_back(QPoint(x,y-1));
+            curClickPath.push_back(QPoint(x, y - 1));
         }
-        if(y<7 && matrix[x][y+1]>=0)
+        if (y < 7 && matrix[x][y + 1] >= 0)
         {
-            curClickPath.push_back(QPoint(x,y+1));
+            curClickPath.push_back(QPoint(x, y + 1));
         }
-        if(x<7 && y>0 && matrix[x+1][y-1]>=0)
+        if (x < 7 && y>0 && matrix[x + 1][y - 1] >= 0)
         {
-            curClickPath.push_back(QPoint(x+1,y-1));
+            curClickPath.push_back(QPoint(x + 1, y - 1));
         }
-        if(x<7 && matrix[x+1][y]>=0)
+        if (x < 7 && matrix[x + 1][y] >= 0)
         {
-            curClickPath.push_back(QPoint(x+1,y));
+            curClickPath.push_back(QPoint(x + 1, y));
         }
-        if(x<7 && y<7 && matrix[x+1][y+1]>=0)
+        if (x < 7 && y < 7 && matrix[x + 1][y + 1] >= 0)
         {
-            curClickPath.push_back(QPoint(x+1,y+1));
+            curClickPath.push_back(QPoint(x + 1, y + 1));
         }
     }
 
 
-    for(int i=0;i<curClickPath.size();i++)
+    for (int i = 0; i < curClickPath.size(); i++)
     {
-        qDebug()<<"curClickPath["<<i<<"]: "<<curClickPath[i];
+        qDebug() << "curClickPath[" << i << "]: " << curClickPath[i];
     }
-    if(isSelected)
+    if (isSelected)
     {
         focusPath = curClickPath;
         curClickPath.clear();
@@ -1336,9 +1344,10 @@ void ChessClient::setMovePoints(QPoint curClick)
 
 void ChessClient::playAgain()
 {
+    isLose = false;
     actSave->setEnabled(false);
     timerCount.stop();
-    drawLineIndex =0;
+    drawLineIndex = 0;
     isStart = false;
     isLoad = false;
     //这里就是重新来，不用再连接
@@ -1369,205 +1378,205 @@ void ChessClient::fileParser(QByteArray array)
 {
 
     QString str(array);
-    qDebug()<<"In fileParser: "<<str;
+    qDebug() << "In fileParser: " << str;
     QStringList strList = str.split(" ");
 
     int num = 0;
 
     QPoint* chessPos;
 
-    qDebug()<<"drawLineIndex = "<<drawLineIndex;
+    qDebug() << "drawLineIndex = " << drawLineIndex;
 
-    if(drawLineIndex == 1)
+    if (drawLineIndex == 1)
     {
-        if(strList[0].contains("white"))
+        if (strList[0].contains("white"))
         {
-            qDebug()<<"white first!";
+            qDebug() << "white first!";
             step = 0;
             isMine = false;
         }
-        else if(strList[0].contains("black"))
+        else if (strList[0].contains("black"))
         {
-            qDebug()<<"black first!";
+            qDebug() << "black first!";
             step = 1;
             isMine = true;
         }
 
     }
     else {
-        if(strList[0].contains("white"))
+        if (strList[0].contains("white"))
         {
-            qDebug()<<"white second!";
+            qDebug() << "white second!";
             isMine = false;
         }
-        else if(strList[0].contains("black"))
+        else if (strList[0].contains("black"))
         {
-            qDebug()<<"black second!";
+            qDebug() << "black second!";
             isMine = true;
         }
 
-        if(strList.size()>2)
+        if (strList.size() > 2)
         {
             num = strList[1].toInt();
             chessPos = new QPoint[num];
 
-            for(int i=2;i<num+2;i++)
+            for (int i = 2; i < num + 2; i++)
             {
-                if(strList[i][0]=="a")
+                if (strList[i][0] == "a")
                 {
-                    chessPos[i-2].setX(0);
+                    chessPos[i - 2].setX(0);
                 }
-                if(strList[i][0]=="b")
+                if (strList[i][0] == "b")
                 {
-                    chessPos[i-2].setX(1);
+                    chessPos[i - 2].setX(1);
                 }
-                if(strList[i][0]=="c")
+                if (strList[i][0] == "c")
                 {
-                    chessPos[i-2].setX(2);
+                    chessPos[i - 2].setX(2);
                 }
-                if(strList[i][0]=="d")
+                if (strList[i][0] == "d")
                 {
-                    chessPos[i-2].setX(3);
+                    chessPos[i - 2].setX(3);
                 }
-                if(strList[i][0]=="e")
+                if (strList[i][0] == "e")
                 {
-                    chessPos[i-2].setX(4);
+                    chessPos[i - 2].setX(4);
                 }
-                if(strList[i][0]=="f")
+                if (strList[i][0] == "f")
                 {
-                    chessPos[i-2].setX(5);
+                    chessPos[i - 2].setX(5);
                 }
-                if(strList[i][0]=="g")
+                if (strList[i][0] == "g")
                 {
-                    chessPos[i-2].setX(6);
+                    chessPos[i - 2].setX(6);
                 }
-                if(strList[i][0]=="h")
+                if (strList[i][0] == "h")
                 {
-                    chessPos[i-2].setX(7);
+                    chessPos[i - 2].setX(7);
                 }
-                if(strList[i][1]=="1")
+                if (strList[i][1] == "1")
                 {
-                    chessPos[i-2].setY(7);
+                    chessPos[i - 2].setY(7);
                 }
-                if(strList[i][1]=="2")
+                if (strList[i][1] == "2")
                 {
-                    chessPos[i-2].setY(6);
+                    chessPos[i - 2].setY(6);
                 }
-                if(strList[i][1]=="3")
+                if (strList[i][1] == "3")
                 {
-                    chessPos[i-2].setY(5);
+                    chessPos[i - 2].setY(5);
                 }
-                if(strList[i][1]=="4")
+                if (strList[i][1] == "4")
                 {
-                    chessPos[i-2].setY(4);
+                    chessPos[i - 2].setY(4);
                 }
-                if(strList[i][1]=="5")
+                if (strList[i][1] == "5")
                 {
-                    chessPos[i-2].setY(3);
+                    chessPos[i - 2].setY(3);
                 }
-                if(strList[i][1]=="6")
+                if (strList[i][1] == "6")
                 {
-                    chessPos[i-2].setY(2);
+                    chessPos[i - 2].setY(2);
                 }
-                if(strList[i][1]=="7")
+                if (strList[i][1] == "7")
                 {
-                    chessPos[i-2].setY(1);
+                    chessPos[i - 2].setY(1);
                 }
-                if(strList[i][1]=="8")
+                if (strList[i][1] == "8")
                 {
-                    chessPos[i-2].setY(0);
+                    chessPos[i - 2].setY(0);
                 }
             }
 
-            qDebug()<<"isMine: "<<isMine;
-            if(strList[0]=="king")
+            qDebug() << "isMine: " << isMine;
+            if (strList[0] == "king")
             {
-                for(int i=0;i<num;i++)
+                for (int i = 0; i < num; i++)
                 {
-                    if(isMine)
+                    if (isMine)
                     {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=-6;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = -6;
                     }
                     else {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=6;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = 6;
                     }
                 }
             }
-            if(strList[0]=="queen")
+            if (strList[0] == "queen")
             {
-                for(int i=0;i<num;i++)
+                for (int i = 0; i < num; i++)
                 {
-                    if(isMine)
+                    if (isMine)
                     {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=-5;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = -5;
                     }
                     else {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=5;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = 5;
                     }
                 }
             }
-            if(strList[0]=="bishop")
+            if (strList[0] == "bishop")
             {
-                for(int i=0;i<num;i++)
+                for (int i = 0; i < num; i++)
                 {
-                    if(isMine)
+                    if (isMine)
                     {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=-4;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = -4;
                     }
                     else {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=4;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = 4;
                     }
                 }
             }
-            if(strList[0]=="horse")
+            if (strList[0] == "horse")
             {
-                for(int i=0;i<num;i++)
+                for (int i = 0; i < num; i++)
                 {
-                    if(isMine)
+                    if (isMine)
                     {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=-3;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = -3;
                     }
                     else {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=3;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = 3;
                     }
                 }
             }
-            if(strList[0]=="rook")
+            if (strList[0] == "rook")
             {
-                for(int i=0;i<num;i++)
+                for (int i = 0; i < num; i++)
                 {
-                    if(isMine)
+                    if (isMine)
                     {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=-2;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = -2;
                     }
                     else {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=2;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = 2;
                     }
                 }
             }
-            if(strList[0]=="pawn")
+            if (strList[0] == "pawn")
             {
-                for(int i=0;i<num;i++)
+                for (int i = 0; i < num; i++)
                 {
-                    if(isMine)
+                    if (isMine)
                     {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=-1;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = -1;
                     }
                     else {
-                        matrix[chessPos[i].x()][chessPos[i].y()]=1;
+                        matrix[chessPos[i].x()][chessPos[i].y()] = 1;
                     }
                 }
             }
         }
 
 
-        for(int j=0;j<num;j++)
+        for (int j = 0; j < num; j++)
         {
-            qDebug()<<drawLineIndex<<": chessPos["<<j<<"]"<<chessPos[j];
+            qDebug() << drawLineIndex << ": chessPos[" << j << "]" << chessPos[j];
         }
     }
 
-    qDebug()<<"In client fileParser step: "<<step;
+    qDebug() << "In client fileParser step: " << step;
 }
 
 void ChessClient::openFile()

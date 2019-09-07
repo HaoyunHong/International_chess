@@ -129,6 +129,8 @@ private:
 
     pawnProDialog *pdlg;
 
+    bool isLose;
+
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);
