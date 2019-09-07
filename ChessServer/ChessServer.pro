@@ -27,14 +27,17 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
         chessserver.cpp \
+        pawnprodialog.cpp \
         serverconnectdialog.cpp
 
 HEADERS += \
         chessserver.h \
+        pawnprodialog.h \
         serverconnectdialog.h
 
 FORMS += \
         chessserver.ui \
+        pawnprodialog.ui \
         serverconnectdialog.ui
 
 # Default rules for deployment.

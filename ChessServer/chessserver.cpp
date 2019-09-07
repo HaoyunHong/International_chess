@@ -15,6 +15,8 @@ ChessServer::ChessServer(QWidget *parent) :
 
     ui->yourTurnlabel->hide();
 
+    isStart = false;
+
     QIcon mainIcon(":/img/img/whiteQueen.png");
     this->setWindowIcon(mainIcon);
 
@@ -229,6 +231,19 @@ ChessServer::ChessServer(QWidget *parent) :
                         matrix[tX][tY] = matrix[oX][oY];
                         matrix[oX][oY] = 0;
 
+                        quint16 pro=0;
+                        in>>pro;
+                        qDebug()<<"in server pro: "<<pro;
+                        if(pro>0)
+                        {
+                            matrix[tX][tY] = pro;
+                        }
+
+                        qDebug()<<"Server receive point:";
+                        qDebug()<<opposeOrigin;
+                        qDebug()<<opposeTo;
+
+                        qDebug()<<"In server step: "<<step;
                         step++;
                         qDebug()<<"Before Server turn step = "<<step;
                         update();
@@ -335,7 +350,7 @@ ChessServer::ChessServer(QWidget *parent) :
     connect(&timerCount,&QTimer::timeout,
             [=]()
     {
-
+        isStart = true;
         ui->lcdNumber->display(countTime);
 
         if(countTime==0)
@@ -444,7 +459,10 @@ void ChessServer::paintEvent(QPaintEvent *e)
 
     if (step % 2 == 0 && step>=0)
     {
-         ui->yourTurnlabel->show();
+        if(isStart)
+        {
+            ui->yourTurnlabel->show();
+        }
         if (curLeftClick != QPoint(-1, -1))
         {
             //qDebug()<<"curLeftClick = "<<curLeftClick;
@@ -590,7 +608,7 @@ void ChessServer::initial()
 
 void ChessServer::mousePressEvent(QMouseEvent *e)
 {
-    if(step%2 != 0)
+    if(step%2 != 0 || !isStart)
     {
         return;
     }
@@ -652,18 +670,72 @@ void ChessServer::mousePressEvent(QMouseEvent *e)
                     matrix[i][j] = matrix[focus.x()][focus.y()];
                     matrix[focus.x()][focus.y()] = 0;
 
-                    QByteArray block;
-                    QDataStream out(&block, QIODevice::WriteOnly);
-                    out.setVersion(QDataStream::Qt_4_3);
-                    //先写一个0来给将要传出去的信息的大小数据占个位子
-                    out << quint16(0) << focus.x() << focus.y() << i << j;
-                    //找到那个0，再覆盖掉
-                    out.device()->seek(0);
-                    out << quint16(block.size() - sizeof(quint16));
-                    tcpServerSocket->write(block);
-
-
                     update();
+
+                    //qDebug()<<"j = "<<j;
+                    if(j==0 && matrix[i][j]==1)
+                    {
+                        //qDebug()<<"j = "<<j;
+                        pdlg = new pawnProDialog(this);
+
+                        connect(pdlg,&pawnProDialog::toQueen,
+                                [=]()
+                        {
+                            matrix[i][j]=5;
+                            qDebug()<<"toQueen";
+
+                        });
+                        connect(pdlg,&pawnProDialog::toBishop,
+                                [=]()
+                        {
+                            matrix[i][j]=4;
+                        });
+                        connect(pdlg,&pawnProDialog::toHorse,
+                                [=]()
+                        {
+                            matrix[i][j]=3;
+                        });
+                        connect(pdlg,&pawnProDialog::toRook,
+                                [=]()
+                        {
+                            matrix[i][j]=2;
+                        });
+
+                        pdlg->exec();
+
+                        update();
+
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(matrix[i][j]);
+                        //找到那个0，再覆盖掉
+                        out.device()->seek(0);
+                        out << quint16(block.size() - sizeof(quint16));
+                        tcpServerSocket->write(block);
+
+                        qDebug()<<"Server send:";
+                        qDebug()<<quint16(block.size() - sizeof(quint16));
+                        qDebug()<<focus;
+                        qDebug()<<i<<","<<j;
+                    }
+                    else {
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(0);
+                        //找到那个0，再覆盖掉
+                        out.device()->seek(0);
+                        out << quint16(block.size() - sizeof(quint16));
+                        tcpServerSocket->write(block);
+
+                        qDebug()<<"Server send:";
+                        qDebug()<<quint16(block.size() - sizeof(quint16));
+                        qDebug()<<focus;
+                        qDebug()<<i<<","<<j;
+                    }
 
                     timerCount.stop();
                     ui->lcdNumber->display(60);
@@ -683,7 +755,7 @@ void ChessServer::mousePressEvent(QMouseEvent *e)
 
 void ChessServer::mouseDoubleClickEvent(QMouseEvent *e)
 {
-    if(step%2!=0)
+    if(step%2!=0  || !isStart)
     {
         return;
     }
@@ -709,30 +781,22 @@ void ChessServer::mouseDoubleClickEvent(QMouseEvent *e)
                 {
                     isSelected = true;
 
-                    setMovePoints(QPoint(i, j));
-
-                    focus = QPoint(i, j);
-
-                    //就是表示这个追踪我不用了
-                    curLeftClick = QPoint(-1, -1);
-
+                    focus = QPoint(i,j);
                     setMovePoints(focus);
-
-                    if(focusPath.size()>0)
+                    if(focusPath.isEmpty())
                     {
-                        qDebug() << "In Server: focus = " << focus;
-
-                        update();
+                        isSelected = false;
+                        focus = QPoint(-1,-1);
+                        focusPath.clear();
+                        qDebug()<<"can't move!";
                     }
                     else {
-                        qDebug() << "Cannot move!" << focus;
-                        focus = QPoint(-1, -1);
-                        focusPath.clear();
-
+                        //就是表示这个追踪我不用了
+                        curLeftClick = QPoint(-1,-1);
+                        qDebug()<<"In Server: focus = "<<focus;
                     }
 
-
-
+                    update();
                 }
             }
         }
@@ -1305,6 +1369,8 @@ void ChessServer::choice()
 
 void ChessServer::playAgain()
 {
+    isStart = false;
+    isLoad = false;
     QByteArray block;
     QDataStream out(&block, QIODevice::WriteOnly);
     out.setVersion(QDataStream::Qt_4_3);

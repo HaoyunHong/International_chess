@@ -27,15 +27,18 @@ CONFIG += c++11
 SOURCES += \
         clientconnectdialog.cpp \
         main.cpp \
-        chessclient.cpp
+        chessclient.cpp \
+        pawnprodialog.cpp
 
 HEADERS += \
         chessclient.h \
-        clientconnectdialog.h
+        clientconnectdialog.h \
+        pawnprodialog.h
 
 FORMS += \
         chessclient.ui \
-        clientconnectdialog.ui
+        clientconnectdialog.ui \
+        pawnprodialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

@@ -34,6 +34,7 @@
 #include <QtNetwork/QHostAddress>
 
 #include "clientconnectdialog.h"
+#include "pawnprodialog.h"
 
 namespace Ui {
 class ChessClient;
@@ -64,6 +65,8 @@ private:
     QVector<QPoint> curClickPath;
 
     void initial();
+
+    bool isStart;
 
     bool isSelected;
 
@@ -105,6 +108,10 @@ private:
 
     QTimer timeStart;
     int startTime;
+
+    bool isLoad;
+
+    pawnProDialog *pdlg;
 protected:
     void paintEvent(QPaintEvent *e);
     void mousePressEvent(QMouseEvent *e);

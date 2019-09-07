@@ -13,6 +13,8 @@ ChessClient::ChessClient(QWidget *parent) :
     ui->yourTurnlabel->setStyleSheet("color:black;background-color:red;");
     ui->yourTurnlabel->hide();
 
+    isStart = false;
+
     //菜单栏
     mBar = menuBar();
     setMenuBar(mBar);
@@ -34,6 +36,8 @@ ChessClient::ChessClient(QWidget *parent) :
             matrix[i][j] = 0;
         }
     }
+
+    isLoad = false;
 
     menu2->setEnabled(false);
 
@@ -80,6 +84,7 @@ ChessClient::ChessClient(QWidget *parent) :
 
                         if(nextBlockSize == 12345)
                         {
+                            ui->yourTurnlabel->hide();
                             actLoad->setEnabled(true);
                             QString path;
                             in>>path;
@@ -89,6 +94,7 @@ ChessClient::ChessClient(QWidget *parent) :
                             {
                                 case QMessageBox::Ok:
                                 emit actLoad->triggered();
+                                isLoad = true;
                                     break;
                                 default:
                                     break;
@@ -109,6 +115,7 @@ ChessClient::ChessClient(QWidget *parent) :
                         }
                         if(nextBlockSize == 8888)
                         {
+                            timerCount.stop();
                             playAgain();
                         }
                         if(nextBlockSize == 6666)
@@ -161,6 +168,19 @@ ChessClient::ChessClient(QWidget *parent) :
 
                             matrix[tX][tY] = matrix[oX][oY];
                             matrix[oX][oY] = 0;
+
+                            quint16 pro=0;
+                            in>>pro;
+                            qDebug()<<"in client pro: "<<pro;
+                            if(pro>0)
+                            {
+                                matrix[tX][tY] = pro;
+                            }
+
+
+                            qDebug()<<"Client receive point:";
+                            qDebug()<<opposeOrigin;
+                            qDebug()<<opposeTo;
 
                             step++;
                             qDebug()<<"Before Client turn step = "<<step;
@@ -306,6 +326,7 @@ ChessClient::ChessClient(QWidget *parent) :
     connect(&timerCount,&QTimer::timeout,
             [=]()
     {
+        isStart = true;
         ui->lcdNumber->display(countTime);
         if(countTime==0)
         {
@@ -408,7 +429,11 @@ void ChessClient::paintEvent(QPaintEvent *e)
 
         if(step%2==1)
         {
-            ui->yourTurnlabel->show();
+            if(isStart)
+            {
+                ui->yourTurnlabel->show();
+            }
+
             if(curLeftClick!=QPoint(-1,-1))
             {
                 //qDebug()<<"curLeftClick = "<<curLeftClick;
@@ -547,7 +572,7 @@ void ChessClient::initial()
 
 void ChessClient::mousePressEvent(QMouseEvent *e)
 {
-    if(step%2 != 1)
+    if(step%2 != 1 || !isStart)
     {
         return;
     }
@@ -602,27 +627,87 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
                 QRect rec = QRect(o.x()+centerIJ.x()-unit/2,o.y()+centerIJ.y()-unit/2,unit,unit);
                 if(rec.contains(curPoint) && focusPath.contains(QPoint(i,j)))
                 { //
-                    qDebug()<<"Here!";
+                    qDebug()<<"RightButton";
                     hasDestination = true;
 
                     matrix[i][j] = matrix[focus.x()][focus.y()];
                     matrix[focus.x()][focus.y()] = 0;
 
-                    QByteArray block;
-                    QDataStream out(&block, QIODevice::WriteOnly);
-                    out.setVersion(QDataStream::Qt_4_3);
-                    //先写一个0来给将要传出去的信息的大小数据占个位子
-                    out << quint16(0) << focus.x()<<focus.y()<<i<<j;
-                    //找到那个0，再覆盖掉
-                    out.device()->seek(0);
-                    out << quint16(block.size() - sizeof(quint16));
-                    tcpClientSocket->write(block);
+                    update();
+
+                    //如果此时满足兵升变的条件
+                    qDebug()<<"j = "<<j;
+                    if(j==7 && matrix[i][j]==-1)
+                    {
+                        qDebug()<<"j = "<<j;
+                        pdlg = new pawnProDialog(this);
+
+                        connect(pdlg,&pawnProDialog::toQueen,
+                                [=]()
+                        {
+                            matrix[i][j]=5;
+                            qDebug()<<"toQueen";
+
+                        });
+                        connect(pdlg,&pawnProDialog::toBishop,
+                                [=]()
+                        {
+                            matrix[i][j]=4;
+                        });
+                        connect(pdlg,&pawnProDialog::toHorse,
+                                [=]()
+                        {
+                            matrix[i][j]=3;
+                        });
+                        connect(pdlg,&pawnProDialog::toRook,
+                                [=]()
+                        {
+                            matrix[i][j]=2;
+                        });
+
+                        pdlg->exec();
+
+                        update();
+
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(matrix[i][j]);
+                        //找到那个0，再覆盖掉
+                        out.device()->seek(0);
+                        out << quint16(block.size() - sizeof(quint16));
+                        tcpClientSocket->write(block);
+
+                        qDebug()<<"Client send:";
+                        qDebug()<<quint16(block.size() - sizeof(quint16));
+                        qDebug()<<focus;
+                        qDebug()<<i<<","<<j;
+                    }
+                    else {
+                        QByteArray block;
+                        QDataStream out(&block, QIODevice::WriteOnly);
+                        out.setVersion(QDataStream::Qt_4_3);
+                        //先写一个0来给将要传出去的信息的大小数据占个位子
+                        out << quint16(0) << focus.x() << focus.y() << i << j<<quint16(0);
+                        //找到那个0，再覆盖掉
+                        out.device()->seek(0);
+                        out << quint16(block.size() - sizeof(quint16));
+                        tcpClientSocket->write(block);
+
+                        qDebug()<<"Client send:";
+                        qDebug()<<quint16(block.size() - sizeof(quint16));
+                        qDebug()<<focus;
+                        qDebug()<<i<<","<<j;
+                    }
+
 
 
                     update();
                     timerCount.stop();
                     countTime = 60;
                     ui->lcdNumber->display(60);
+
                     step++;
                     qDebug()<<"This Client turn step = "<<step;
                     focusPath.clear();
@@ -637,7 +722,7 @@ void ChessClient::mousePressEvent(QMouseEvent *e)
 
 void ChessClient::mouseDoubleClickEvent(QMouseEvent *e)
 {
-    if(step%2 != 1)
+    if(step%2 != 1 || !isStart)
     {
         return;
     }
@@ -664,12 +749,19 @@ void ChessClient::mouseDoubleClickEvent(QMouseEvent *e)
                     isSelected = true;
 
                     focus = QPoint(i,j);
-
-                    //就是表示这个追踪我不用了
-                    curLeftClick = QPoint(-1,-1);
-
                     setMovePoints(focus);
-                    qDebug()<<"In Server: focus = "<<focus;
+                    if(focusPath.isEmpty())
+                    {
+                        isSelected = false;
+                        focus = QPoint(-1,-1);
+                        focusPath.clear();
+                        qDebug()<<"can't move!";
+                    }
+                    else {
+                        //就是表示这个追踪我不用了
+                        curLeftClick = QPoint(-1,-1);
+                        qDebug()<<"In Server: focus = "<<focus;
+                    }
 
                     update();
                 }
@@ -1222,6 +1314,8 @@ void ChessClient::setMovePoints(QPoint curClick)
 
 void ChessClient::playAgain()
 {
+    isStart = false;
+    isLoad = false;
     //这里就是重新来，不用再连接
     ui->yourTurnlabel->hide();
     for (int i = 0; i < 8; i++)

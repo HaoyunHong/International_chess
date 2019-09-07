@@ -35,6 +35,7 @@
 #include <QtNetwork/QHostAddress>
 
 #include "serverconnectdialog.h"
+#include "pawnprodialog.h"
 
 namespace Ui {
 class ChessServer;
@@ -92,6 +93,8 @@ private:
 
     void initial();
 
+    bool isStart;
+
     bool isSelected;
 
     QPoint curLeftClick;
@@ -123,6 +126,8 @@ private:
     int drawLineIndex;
 
     bool isMine;
+
+    pawnProDialog *pdlg;
 
 protected:
     void paintEvent(QPaintEvent *e);
