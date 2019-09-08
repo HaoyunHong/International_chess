@@ -29,7 +29,6 @@ private:
     Ui::pawnProDialog *ui;
 
 protected:
-    void closeEvent(QCloseEvent *event);
 
 
 

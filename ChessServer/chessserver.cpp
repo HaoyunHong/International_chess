@@ -116,6 +116,7 @@ ChessServer::ChessServer(QWidget *parent) :
                         }
                         update();
                         ui->yourTurnlabel->hide();
+                        judgeCamp();
 
 
                         if(step==-1)
@@ -191,6 +192,7 @@ ChessServer::ChessServer(QWidget *parent) :
 
                     if(nextBlockSize == 7878)
                     {
+                        timerCount.stop();
                         int ret = QMessageBox::information(this, "Draw", "Reach a draw!", QMessageBox::Ok);
                         switch (ret)
                         {
@@ -307,6 +309,8 @@ ChessServer::ChessServer(QWidget *parent) :
 
                         timerCount.start(1000);
 
+                        judgeCamp();
+
                         if(pro == 505)
                         {
                             timerCount.stop();
@@ -323,7 +327,7 @@ ChessServer::ChessServer(QWidget *parent) :
                         }
                 }
 
-                judgeCamp();
+
             });
 
         });
@@ -1618,6 +1622,7 @@ void ChessServer::choice()
 
 void ChessServer::playAgain()
 {
+    actSave->setEnabled(false);
     isLose = false;
     actSave->setEnabled(false);
     timerCount.stop();
@@ -2577,6 +2582,10 @@ void ChessServer::getPath(QPoint p)
 
 void ChessServer::judgeCamp()
 {
+    if(step%2==1)
+    {
+        return;
+    }
     bool isDraw = false;
     dangerPoints.clear();
     QPoint myKing;
@@ -2593,10 +2602,12 @@ void ChessServer::judgeCamp()
             if (matrix[i][j] < 0)
             {
                 otherSide.push_back(QPoint(i, j));
+                qDebug()<<"otherSide: "<<QPoint(i, j);
             }
             if(matrix[i][j]==6)
             {
                 myKing=QPoint(i,j);
+                qDebug()<<"myKing: "<<myKing;
             }
         }
     }
@@ -2652,6 +2663,7 @@ void ChessServer::judgeCamp()
             {
                 //threatPoints是会造成威胁的点
                 threatPoints.push_back(otherSide[i]);
+                qDebug()<<"threatPoints: "<<otherSide[i];
             }
         }
 
@@ -2666,6 +2678,7 @@ void ChessServer::judgeCamp()
             if (matrix[i][j] > 0)
             {
                 mySide.push_back(QPoint(i, j));
+                qDebug()<<"mySide: "<<QPoint(i, j);
             }
         }
     }
@@ -2712,6 +2725,7 @@ void ChessServer::judgeCamp()
         if(dangers.contains(myKingPath[i]))
         {
             cnt++;
+            qDebug()<<"cnt: "<<cnt;
         }
     }
 

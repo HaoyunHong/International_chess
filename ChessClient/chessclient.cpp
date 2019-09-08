@@ -148,7 +148,7 @@ ChessClient::ChessClient(QWidget *parent) :
                                         break;
                                 }
                             }
-
+                            judgeCamp();
                             break;
                         }
                         if (nextBlockSize == 7777)
@@ -239,6 +239,7 @@ ChessClient::ChessClient(QWidget *parent) :
                             qDebug() << "Before Client turn step = " << step;
                             update();
                             timerCount.start(1000);
+                            judgeCamp();
 
                             if (pro == 505)
                             {
@@ -254,8 +255,9 @@ ChessClient::ChessClient(QWidget *parent) :
                                     break;
                                 }
                             }
+
                     }
-                    judgeCamp();
+
 
 
                 });
@@ -2452,6 +2454,10 @@ void ChessClient::getPath(QPoint p)
 
 void ChessClient::judgeCamp()
 {
+    if(step%2==0)
+    {
+        return;
+    }
     bool isDraw = false;
     dangerPoints.clear();
     QPoint myKing;
@@ -2468,10 +2474,12 @@ void ChessClient::judgeCamp()
             if (matrix[i][j] > 0)
             {
                 otherSide.push_back(QPoint(i, j));
+                qDebug()<<"otherSide: "<<QPoint(i, j);
             }
             if(matrix[i][j]==-6)
             {
                 myKing=QPoint(i,j);
+                qDebug()<<"myKing: "<<myKing;
             }
         }
     }
@@ -2523,6 +2531,7 @@ void ChessClient::judgeCamp()
         }
         for(int j=0;j<myKingPath.size();j++)
         {
+            qDebug()<<"myKingPath["<<j<<"]: "<<myKingPath[j];
             if(dangerPoints.contains(myKingPath[j]))
             {
                 //threatPoints是会造成威胁的点
@@ -2541,6 +2550,7 @@ void ChessClient::judgeCamp()
             if (matrix[i][j] < 0)
             {
                 mySide.push_back(QPoint(i, j));
+                qDebug()<<"mySide: "<<QPoint(i, j);
             }
         }
     }
@@ -2580,6 +2590,10 @@ void ChessClient::judgeCamp()
         }
     }
 
+    for(int i=0;i<dangers.size();i++)
+    {
+        qDebug()<<"dangers["<<i<<"]: "<<dangers[i];
+    }
 
     int cnt=0;
     for(int i=0;i<myKingPath.size();i++)
@@ -2587,11 +2601,12 @@ void ChessClient::judgeCamp()
         if(dangers.contains(myKingPath[i]))
         {
             cnt++;
+            qDebug()<<"cnt: "<<cnt;
         }
     }
 
 
-    if(cnt==myKingPath.size())
+    if(cnt>0 && cnt==myKingPath.size())
     {
         timerCount.stop();
         QByteArray block;

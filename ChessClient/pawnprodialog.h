@@ -28,8 +28,9 @@ signals:
 private:
     Ui::pawnProDialog *ui;
 
+    bool haveToClose;
+
 protected:
-    void closeEvent(QCloseEvent *event);
 
 
 

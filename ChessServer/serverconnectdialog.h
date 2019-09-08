@@ -29,6 +29,7 @@ private:
 
 protected:
     void closeEvent(QCloseEvent *event);
+
 };
 
 #endif // SERVERCONNECTDIALOG_H

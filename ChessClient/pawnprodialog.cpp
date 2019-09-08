@@ -26,6 +26,7 @@ pawnProDialog::pawnProDialog(QWidget *parent) :
             this->setWindowTitle("You choose Queen!");
             emit toQueen();
             qDebug()<<"emit toQueen()";
+            haveToClose = true;
             this->close();
         }
 
@@ -43,6 +44,7 @@ pawnProDialog::pawnProDialog(QWidget *parent) :
             this->setWindowTitle("You choose Bishop!");
             emit toBishop();
             qDebug()<<"emit toBishop()";
+            haveToClose = true;
             this->close();
         }
     });
@@ -58,6 +60,7 @@ pawnProDialog::pawnProDialog(QWidget *parent) :
             this->setWindowTitle("You choose Horse!");
             emit toHorse();
             qDebug()<<"emit toHorse()";
+            haveToClose = true;
             this->close();
         }
     });
@@ -73,9 +76,12 @@ pawnProDialog::pawnProDialog(QWidget *parent) :
             this->setWindowTitle("You choose Rook!");
             emit toRook();
             qDebug()<<"emit toRook()";
+            haveToClose = true;
             this->close();
         }
     });
+
+    haveToClose = false;
 
 
 }
@@ -85,16 +91,4 @@ pawnProDialog::~pawnProDialog()
     delete ui;
 }
 
-void pawnProDialog::closeEvent(QCloseEvent *event)
-{
-    int ret = QMessageBox::warning(this, "Warning", "You have to choose one for your pawn's promotion!", QMessageBox::Ok);
-    switch (ret)
-    {
-    case QMessageBox::Ok:
-        event->ignore();
-        break;
-    default:
-        event->ignore();
-        break;
-    }
-}
+

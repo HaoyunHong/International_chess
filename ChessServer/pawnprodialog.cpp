@@ -84,17 +84,3 @@ pawnProDialog::~pawnProDialog()
 {
     delete ui;
 }
-
-void pawnProDialog::closeEvent(QCloseEvent *event)
-{
-    int ret = QMessageBox::warning(this, "Warning", "You have to choose one for your pawn's promotion!", QMessageBox::Ok);
-    switch (ret)
-    {
-    case QMessageBox::Ok:
-        event->ignore();
-        break;
-    default:
-        event->ignore();
-        break;
-    }
-}
