@@ -1414,7 +1414,6 @@ void ChessClient::setMovePoints(QPoint curClick)
 
             if(matrix[0][0]==-2 && matrix[1][0]==0 && matrix[2][0]==0 && matrix[3][0]==0)
             {
-                bool canLong=true;
                 int cnt=0;
                 for(int i=0;i<dangerPoints.size();i++)
                 {
@@ -1422,18 +1421,10 @@ void ChessClient::setMovePoints(QPoint curClick)
                     if(dangerPoints[i]!=QPoint(4,0)  && dangerPoints[i]!=QPoint(2,0) && dangerPoints[i]!=QPoint(3,0))
                     {
                         cnt++;
-                        if(dangerPoints[i]==QPoint(1,0))
-                        {
-                            canLong = false;
-                        }
                     }
                 }
                 if(cnt==dangerPoints.size())
                 {
-                    if(canLong)
-                    {
-                        curClickPath.push_back(QPoint(1,0));
-                    }
                     curClickPath.push_back(QPoint(2,0));
                 }
             }

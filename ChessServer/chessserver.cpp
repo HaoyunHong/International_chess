@@ -1511,7 +1511,6 @@ void ChessServer::setMovePoints(QPoint curClick)
 
             if(matrix[0][7]==2 && matrix[1][7]==0 && matrix[2][7]==0 && matrix[3][7]==0)
             {
-                bool canLong=true;
                 int cnt=0;
                 for(int i=0;i<dangerPoints.size();i++)
                 {
@@ -1519,18 +1518,10 @@ void ChessServer::setMovePoints(QPoint curClick)
                     if(dangerPoints[i]!=QPoint(4,7)  && dangerPoints[i]!=QPoint(2,7) && dangerPoints[i]!=QPoint(3,7))
                     {
                         cnt++;
-                        if(dangerPoints[i]==QPoint(1,7))
-                        {
-                            canLong = false;
-                        }
                     }
                 }
                 if(cnt==dangerPoints.size())
                 {
-                    if(canLong)
-                    {
-                        curClickPath.push_back(QPoint(1,7));
-                    }
                     curClickPath.push_back(QPoint(2,7));
                 }
             }
@@ -2582,6 +2573,10 @@ void ChessServer::getPath(QPoint p)
     }
 }
 
+
+//其实这里写得还不够完善
+//逼和的另一种情况是如果移动了自己的可以移动的棋子，会导致直接被将军
+//这里其实还可以再完善一下
 void ChessServer::judgeCamp()
 {
     if(step%2==1)
