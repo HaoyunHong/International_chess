@@ -1733,6 +1733,8 @@ void ChessServer::origin()
     }
     update();
     qDebug() << "Server Cancel!";
+
+    actSave->setEnabled(false);
 }
 
 

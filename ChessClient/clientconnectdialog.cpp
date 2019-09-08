@@ -52,7 +52,10 @@ bool clientConnectDialog::isValid(QString str)
 {
 //    qDebug()<<"str = "<<str;
 //    qDebug()<<"str.toInt(): "<<str.toInt();
-    if(str.isEmpty() || str.toInt()<0 || str.toInt()>255)
+    bool ok;
+    int val = str.toInt(&ok);
+    qDebug()<<"ok = "<<ok;
+    if(!ok || str.isEmpty() || val<0 || val>255)
     {
         return false;
     }

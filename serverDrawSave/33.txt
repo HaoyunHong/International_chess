@@ -1,0 +1,7 @@
+black
+rook 1 e6
+king 1 d8
+white
+rook 2 a1 h1
+queen 1 h6
+king 1 e1
